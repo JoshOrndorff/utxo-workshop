@@ -1,0 +1,21 @@
+[lib]
+crate-type = ['cdylib']
+
+[package]
+authors = ['Parity Technologies <admin@parity.io>']
+edition = '2018'
+name = 'utxo-runtime-wasm'
+version = '1.0.0'
+
+[workspace]
+members = []
+
+[features]
+default = []
+std = ['utxo-runtime/std']
+[dependencies.utxo-runtime]
+default-features = false
+path = '..'
+[profile.release]
+lto = true
+panic = 'abort'
