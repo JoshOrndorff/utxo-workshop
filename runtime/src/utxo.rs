@@ -199,7 +199,6 @@ impl<T: Trait> Module<T> {
         }
     }
 
-
 }
 
 /// tests for this module
