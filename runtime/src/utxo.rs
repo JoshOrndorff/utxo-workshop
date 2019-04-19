@@ -18,6 +18,7 @@ use runtime_primitives::{Serialize, Deserialize}; //update
 use runtime_io::{ed25519_verify};
 // use serde::{de, Serializer, Deserializer}; //not sure about this
 use parity_codec::{Codec, Encode, Decode}; //update
+use consensus;
 
 pub trait Trait: system::Trait {
 	type Event: From<Event> + Into<<Self as system::Trait>::Event>;
@@ -64,7 +65,7 @@ decl_storage! {
 				.collect::<Vec<_>>()
 		}): map H256 => Option<TransactionOutput>;
 
-        pub LeftOverTotal get(leftover_total): Value;
+        pub DustTotal get(leftover_total): Value;
 
         // TODO lockedoutputs
 	}
@@ -81,7 +82,7 @@ decl_module! {
 
         // custom function for minting tokens (instead of doing in genesis config)
         fn mint(origin, value: Value, pubkey: H256) -> Result {
-            let sender = ensure_inherent(origin)?;
+            ensure_inherent(origin)?;
             let salt:u64 = <system::Module<T>>::block_number().as_();
             let trx = TransactionOutput { value, pubkey, salt };
             let hash = BlakeTwo256::hash_of(&trx); 
@@ -90,30 +91,32 @@ decl_module! {
             Ok(())
         }
 
-        fn execute(origin, transaction: Transaction) {
-            let sender = ensure_inherent(origin)?;
+        fn execute(origin, transaction: Transaction) -> Result {
+            ensure_inherent(origin)?;
 
             // Verify the transaction
-            Self::_verify_transaction(&transaction);
+            let dust = match Self::_verify_transaction(&transaction)? {
+                CheckInfo::Totals{input, output} => input - output,
+                CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
+            };
 
             // Update unspent outputs
-
+            Self::_update_storage(&transaction, dust)?;
+            
+            Ok(())
         }
 
-        // TODO delete this
-        pub fn do_something(something: u32) -> Result {
-			Self::deposit_event(Event::SomethingStored(something));
-			Ok(())
-	    }
+        fn on_finalize() {
+            //                                          convert data into entries in a Vec<_>
+            let auth:Vec<_> = consensus::authorities().iter().map(|&x| x.into() ).collect();
+            Self::_spend_dust(&auth);
+        }
 	}
 }
 
 decl_event!(
 	pub enum Event {
-		// Just a dummy event.
-		// Event `Something` is declared with a parameter of the type `u32` and `AccountId`
-		// To emit this event, we call the deposit funtion, from our runtime funtions
-		SomethingStored(u32),
+		TransactionExecuted(Transaction),
 	}
 );
 // nice coding pattern, everytime you return a value, 1. wrap enum in resultType 2. use enum to represent different outcomes
@@ -126,6 +129,28 @@ pub enum CheckInfo<'a> {
 pub type CheckResult<'a> = std::result::Result<CheckInfo<'a>, &'static str>; // errors are already defined
 
 impl<T: Trait> Module<T> {
+    fn _spend_dust(auth: &Vec<u8>) { //TODO double check
+
+    }
+
+    fn _update_storage(transaction: &Transaction, dust: Value) -> Result {
+        // update dust
+        let dust_total = <DustTotal<T>>::get().checked_add(dust).ok_or("Dust overflow")?;
+        <DustTotal<T>>::put(dust_total);
+        
+        // update unspent outputs
+        for input in &transaction.inputs {
+            <UnspentOutputs<T>>::remove(input.parent_output);
+        }
+
+        for output in &transaction.outputs {
+            let hash = BlakeTwo256::hash_of(output); 
+            <UnspentOutputs<T>>::insert(hash, output);
+        }
+
+        Ok(())
+    }
+
     /// Verifies the transaction validity, returns the outcome
     fn _verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
         // 1. Verify that inputs and outputs are not empty
