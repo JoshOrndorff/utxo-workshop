@@ -8,44 +8,32 @@ use support::{
     ensure,
     dispatch::Result
 };
-use system::ensure_signed;
-use primitives::H256;
-use primitives::ed25519::{Public, Signature};
-use runtime_primitives::traits::{Hash, BlakeTwo256};
+
+use system::ensure_inherent;
+use primitives::{H256, H512};
+use rstd::collections::btree_map::BTreeMap;
+// use primitives::ed25519::{Public, Pair};
+use runtime_primitives::traits::{As, Hash, BlakeTwo256};
 use runtime_primitives::{Serialize, Deserialize}; //update
-use serde::{de, Serializer, Deserializer}; //not sure about this
-use parity_codec::{Encode, Decode}; //update
+use runtime_io::{ed25519_verify};
+// use serde::{de, Serializer, Deserializer}; //not sure about this
+use parity_codec::{Codec, Encode, Decode}; //update
 
 pub trait Trait: system::Trait {
 	type Event: From<Event> + Into<<Self as system::Trait>::Event>;
 }
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-#[derive(PartialEq, Eq, Default, Clone, Encode, Decode, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct Transaction {
     inputs: Vec<TransactionInput>,
     outputs: Vec<TransactionOutput>
 }
 
-impl<'de> Deserialize<'de> for Signature {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> 
-        where D: Deserializer<'de> 
-    {
-		Signature::from_ss58check(&String::deserialize(deserializer)?)
-			.map_err(|e| de::Error::custom(format!("{:?}", e)))
-	}
-}
-
-impl Serialize for Signature {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer 
-    {
-		serializer.serialize_str(&self.to_ss58check())
-	}
-}
+type Signature = H512; 
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-#[derive(PartialEq, Eq, Default, Clone, Encode, Decode, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct TransactionInput {
     // Referen  ce to the input value
     pub parent_output: H256,  // referred UTXO
@@ -60,35 +48,60 @@ pub type Value = u128; // Alias u128 to Value
 pub struct TransactionOutput {
     pub value: Value,
     pub pubkey: H256, // pub key of the output, owner has to have private key
-    pub salt: u32,    // distinguishes outputs of same value/pubkey apart
+    pub salt: u64,    // distinguishes outputs of same value/pubkey apart
 }
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Utxo {
-        /// Mocks the UTXO state
-		pub UnspentOutputs get(unspent_outputs) build(|config: &GenesisConfig<T>| {
-            config.initial_utxo
-                .iter()
-                .cloned()      //clones underlying iterator
-                .map(|u| (BlakeTwo256::hash_of(&u), u))
-                .collect::<Vec<_>>()
-        }): map H256 => Option<TransactionOutput>;
 
+        // pub UnspentOutputs get(unspent_outputs): map H256 => Option<TransactionOutput>;
+
+        UnspentOutputs build(|config: &GenesisConfig<T>| {
+			config.initial_utxo
+				.iter()
+				.cloned()
+				.map(|u| (BlakeTwo256::hash_of(&u), u))
+				.collect::<Vec<_>>()
+		}): map H256 => Option<TransactionOutput>;
+
+        pub LeftOverTotal get(leftover_total): Value;
+
+        // TODO lockedoutputs
 	}
 
     add_extra_genesis {
-        config(initial_utxo): Vec<(TransactionOutput)>;
-    }
+		config(initial_utxo): Vec<TransactionOutput>;
+	}
 
 }
 
 decl_module! {
-	/// The module declaration.
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+        fn deposit_event() = default;
 
-		fn deposit_event<T>() = default;
+        // custom function for minting tokens (instead of doing in genesis config)
+        fn mint(origin, value: Value, pubkey: H256) -> Result {
+            let sender = ensure_inherent(origin)?;
+            let salt:u64 = <system::Module<T>>::block_number().as_();
+            let trx = TransactionOutput { value, pubkey, salt };
+            let hash = BlakeTwo256::hash_of(&trx); 
+            <UnspentOutputs<T>>::insert(hash, trx);
+            
+            Ok(())
+        }
 
-        pub fn do_something(origin, something: u32) -> Result {
+        fn execute(origin, transaction: Transaction) {
+            let sender = ensure_inherent(origin)?;
+
+            // Verify the transaction
+            Self::_verify_transaction(&transaction);
+
+            // Update unspent outputs
+
+        }
+
+        // TODO delete this
+        pub fn do_something(something: u32) -> Result {
 			Self::deposit_event(Event::SomethingStored(something));
 			Ok(())
 	    }
@@ -103,6 +116,91 @@ decl_event!(
 		SomethingStored(u32),
 	}
 );
+// nice coding pattern, everytime you return a value, 1. wrap enum in resultType 2. use enum to represent different outcomes
+
+pub enum CheckInfo<'a> {
+    Totals { input: Value, output: Value },   // struct
+    MissingInputs(Vec<&'a H256>),     //Q: why is there a lifetime/reference here?
+}
+
+pub type CheckResult<'a> = std::result::Result<CheckInfo<'a>, &'static str>; // errors are already defined
+
+impl<T: Trait> Module<T> {
+    /// Verifies the transaction validity, returns the outcome
+    fn _verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
+        // 1. Verify that inputs and outputs are not empty
+        ensure!(transaction.inputs.is_empty(), "no inputs");
+        ensure!(transaction.outputs.is_empty(), "no outputs");
+
+        {
+            let input_set: BTreeMap<_, ()> = transaction
+                .inputs
+                .iter()
+                .map(|input| (input, ()))
+                .collect();
+
+            ensure!(
+                input_set.len() == transaction.inputs.len(),
+                "each input must only be used once"
+            );
+        }
+
+        {
+            let output_set: BTreeMap<_, ()> = transaction
+                .outputs
+                .iter()
+                .map(|output| (output, ()))
+                .collect();
+
+            ensure!(
+                output_set.len() == transaction.outputs.len(),
+                "each output must be defined only once"
+            );
+        }
+
+        let mut total_input: Value = 0;
+        let mut missing_utxo = Vec::new();
+        for input in transaction.inputs.iter() {
+            if let Some(output) = <UnspentOutputs<T>>::get(&input.parent_output) {
+                // ensure!(!<lockedoutputs<T>>::exists(&input.parent_output), "utxo is locked");
+
+                // Check uxto authorization
+                ensure!(
+                    ed25519_verify(
+                        input.signature.as_fixed_bytes(), // impl s.t. returns [u8; 64]
+                        input.parent_output.as_fixed_bytes(),
+                        &output.pubkey
+                    ),
+                    "signature must be valid"
+                );
+
+                // Add the value to the input total
+                total_input = total_input.checked_add(output.value).ok_or("input value overflow")?;
+            } else {
+                missing_utxo.push(&input.parent_output);
+            }
+        }
+
+        let mut total_output: Value = 0;
+        for output in transaction.outputs.iter() {
+            ensure!(output.value != 0, "output value must be nonzero");
+
+            let hash = BlakeTwo256::hash_of(output);
+            ensure!(!<UnspentOutputs<T>>::exists(hash), "output already exists");
+
+            total_output = total_output.checked_add(output.value).ok_or("output value overflow")?;
+        }
+
+        if missing_utxo.is_empty() {
+            ensure!(total_input >= total_output, "output value must not exceed input value");
+            Ok(CheckInfo::Totals { input: total_input, output: total_input })
+        } else {
+            Ok(CheckInfo::MissingInputs(missing_utxo))
+        }
+    }
+
+
+}
 
 /// tests for this module
 #[cfg(test)]
@@ -140,6 +238,7 @@ mod tests {
 	impl Trait for Test {
 		type Event = ();
 	}
+
 	type Utxo = Module<Test>;
 
 	// This function basically just builds a genesis storage key/value store according to
@@ -154,4 +253,12 @@ mod tests {
 			assert!(true);
 		});
 	}
+
+    fn can_mint_utxos() {
+        with_externalities(&mut new_test_ext(), || {
+            let pubkey = H256::random();      //some randome h256
+            assert_ok!(Utxo::mint(Origin::INHERENT, 5, pubkey));
+        });
+    }
+
 }
