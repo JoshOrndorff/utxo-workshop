@@ -1,20 +1,85 @@
 /// A reimplementation of Dima's UTXO chain
-
-use support::{decl_module, decl_storage, decl_event, StorageValue, dispatch::Result};
+use support::{
+    decl_module, 
+    decl_storage, 
+    decl_event, 
+    StorageValue,
+    StorageMap,
+    ensure,
+    dispatch::Result
+};
 use system::ensure_signed;
+use primitives::H256;
+use primitives::ed25519::{Public, Signature};
+use runtime_primitives::traits::{Hash, BlakeTwo256};
+use runtime_primitives::{Serialize, Deserialize}; //update
+use serde::{de, Serializer, Deserializer}; //not sure about this
+use parity_codec::{Encode, Decode}; //update
 
 pub trait Trait: system::Trait {
-	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+	type Event: From<Event> + Into<<Self as system::Trait>::Event>;
 }
 
-/// This module's storage items.
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
+#[derive(PartialEq, Eq, Default, Clone, Encode, Decode, Hash)]
+pub struct Transaction {
+    inputs: Vec<TransactionInput>,
+    outputs: Vec<TransactionOutput>
+}
+
+impl<'de> Deserialize<'de> for Signature {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> 
+        where D: Deserializer<'de> 
+    {
+		Signature::from_ss58check(&String::deserialize(deserializer)?)
+			.map_err(|e| de::Error::custom(format!("{:?}", e)))
+	}
+}
+
+impl Serialize for Signature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer 
+    {
+		serializer.serialize_str(&self.to_ss58check())
+	}
+}
+
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
+#[derive(PartialEq, Eq, Default, Clone, Encode, Decode, Hash)]
+pub struct TransactionInput {
+    // Referen  ce to the input value
+    pub parent_output: H256,  // referred UTXO
+    pub signature: Signature, // proof that owner is authorized to spend referred UTXO
+    // omitted traits ord, partialord bc its not implemented for signature yet
+}
+
+pub type Value = u128; // Alias u128 to Value
+
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
+pub struct TransactionOutput {
+    pub value: Value,
+    pub pubkey: H256, // pub key of the output, owner has to have private key
+    pub salt: u32,    // distinguishes outputs of same value/pubkey apart
+}
+
 decl_storage! {
 	trait Store for Module<T: Trait> as Utxo {
-		// Just a dummy storage item. 
-		// Here we are declaring a StorageValue, `Something` as a Option<u32>
-		// `get(something)` is the default getter which returns either the stored `u32` or `None` if nothing stored
-		Something get(something): Option<u32>;
+        /// Mocks the UTXO state
+		pub UnspentOutputs get(unspent_outputs) build(|config: &GenesisConfig<T>| {
+            config.initial_utxo
+                .iter()
+                .cloned()      //clones underlying iterator
+                .map(|u| (BlakeTwo256::hash_of(&u), u))
+                .collect::<Vec<_>>()
+        }): map H256 => Option<TransactionOutput>;
+
 	}
+
+    add_extra_genesis {
+        config(initial_utxo): Vec<(TransactionOutput)>;
+    }
+
 }
 
 decl_module! {
@@ -23,22 +88,19 @@ decl_module! {
 
 		fn deposit_event<T>() = default;
 
-		pub fn do_something(origin, something: u32) -> Result {
-
-			let who = ensure_signed(origin)?;
-
-			<Something<T>>::put(something);
-
-			Self::deposit_event(RawEvent::SomethingStored(something, who));
+        pub fn do_something(origin, something: u32) -> Result {
+			Self::deposit_event(Event::SomethingStored(something));
 			Ok(())
-		}
+	    }
 	}
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as system::Trait>::AccountId {
-
-		SomethingStored(u32, AccountId),
+	pub enum Event {
+		// Just a dummy event.
+		// Event `Something` is declared with a parameter of the type `u32` and `AccountId`
+		// To emit this event, we call the deposit funtion, from our runtime funtions
+		SomethingStored(u32),
 	}
 );
 
@@ -89,11 +151,7 @@ mod tests {
 	#[test]
 	fn it_works_for_default_value() {
 		with_externalities(&mut new_test_ext(), || {
-			// Just a dummy test for the dummy funtion `do_something`
-			// calling the `do_something` function with a value 42
-			assert_ok!(Utxo::do_something(Origin::signed(1), 42));
-			// asserting that the stored value is equal to what we stored
-			assert_eq!(Utxo::something(), Some(42));
+			assert!(true);
 		});
 	}
 }
