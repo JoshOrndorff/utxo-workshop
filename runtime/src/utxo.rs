@@ -240,10 +240,28 @@ mod tests {
 
 	type Utxo = Module<Test>;
 
+    // pub value: Value,
+    // pub pubkey: H256, // pub key of the output, owner has to have private key
+    // pub salt: u64,
+    fn alice_utxo() -> (H256, TransactionOutput) {
+		let transaction = TransactionOutput {
+			value: Value::max_value(),
+			pubkey: H256::zero(),
+			salt: 0,
+		};
+
+		(BlakeTwo256::hash_of(&transaction), transaction)
+	}
+
 	// This function basically just builds a genesis storage key/value store according to
 	// our desired mockup.
 	fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-		system::GenesisConfig::<Test>::default().build_storage().unwrap().0.into()
+		let mut t = system::GenesisConfig::<Test>::default().build_storage().unwrap().0;
+        t.extend(GenesisConfig::<Test>{
+            initial_utxo: vec![alice_utxo().1],
+            ..Default::default()
+        }.build_storage().unwrap().0);
+        t.into()
 	}
 
 	#[test]
