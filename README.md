@@ -23,6 +23,17 @@ cargo install --git https://github.com/alexcrichton/wasm-gc
 ./build.sh
 ```
 
+# Polkadot UI
+```
+./build.sh              // build wasm
+cargo build —release    // build binary
+./target/release/utxo-runtime purge-chain -—dev
+./target/release/utxo-runtime —-dev
+```
+
+https://polkadot.js.org/ 
+
+
 ## Exercise 1
 1. Make the tests pass
 `cargo test -p utxo-runtime`

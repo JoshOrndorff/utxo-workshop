@@ -12,13 +12,21 @@ use support::{
 use system::ensure_inherent;
 use primitives::{H256, H512};
 use rstd::collections::btree_map::BTreeMap;
-// use primitives::ed25519::{Public, Pair};
-use runtime_primitives::traits::{As, Hash, BlakeTwo256};
+use primitives::ed25519::{Public, Pair};
+use runtime_primitives::traits::{
+    As, 
+    Hash, 
+    BlakeTwo256, 
+    CheckedDiv,
+    CheckedSub,
+    CheckedAdd,
+    CheckedMul,
+};
 use runtime_primitives::{Serialize, Deserialize}; //update
 use runtime_io::{ed25519_verify};
 // use serde::{de, Serializer, Deserializer}; //not sure about this
 use parity_codec::{Codec, Encode, Decode}; //update
-use consensus;
+use super::Consensus; //Q: is this ok?
 
 pub trait Trait: system::Trait {
 	type Event: From<Event> + Into<<Self as system::Trait>::Event>;
@@ -84,9 +92,14 @@ decl_module! {
         fn mint(origin, value: Value, pubkey: H256) -> Result {
             ensure_inherent(origin)?;
             let salt:u64 = <system::Module<T>>::block_number().as_();
-            let trx = TransactionOutput { value, pubkey, salt };
-            let hash = BlakeTwo256::hash_of(&trx); 
-            <UnspentOutputs<T>>::insert(hash, trx);
+            let utxo = TransactionOutput { value, pubkey, salt };
+            let hash = BlakeTwo256::hash_of(&utxo); 
+
+            if !<UnspentOutputs<T>>::exists(hash) {
+                <UnspentOutputs<T>>::insert(hash, utxo);
+            } else {
+                runtime_io::print("cannot mint due to hash collision");
+            }
             
             Ok(())
         }
@@ -107,8 +120,9 @@ decl_module! {
         }
 
         fn on_finalize() {
-            //                                          convert data into entries in a Vec<_>
-            let auth:Vec<_> = consensus::authorities().iter().map(|&x| x.into() ).collect();
+            //                                                        Q: this ok?
+            let auth:Vec<_> = Consensus::authorities().iter().map(|x| x.0.into() ).collect();
+                                    //Vec<T::SessionKey>
             Self::_spend_dust(&auth);
         }
 	}
@@ -129,8 +143,33 @@ pub enum CheckInfo<'a> {
 pub type CheckResult<'a> = std::result::Result<CheckInfo<'a>, &'static str>; // errors are already defined
 
 impl<T: Trait> Module<T> {
-    fn _spend_dust(auth: &Vec<u8>) { //TODO double check
-
+    //                  You almost always want &[T] over &Vec<T>
+    fn _spend_dust(authorities: &[H256]) { //TODO double check
+        let dust = <DustTotal<T>>::take();
+        let dust_per_authority: Value = dust.checked_div(authorities.len() as Value).ok_or("No authorities").unwrap();
+        if dust_per_authority == 0 { return };
+        
+        // Q: Should we save the remainder here?
+        let dust_remainder = dust.checked_sub(dust_per_authority * authorities.len() as Value).ok_or("Sub underflow").unwrap();
+        <DustTotal<T>>::put(dust_remainder as Value);
+        
+        for authority in authorities {
+            let utxo = TransactionOutput {
+                value: dust_per_authority,
+                pubkey: *authority,
+                salt: <system::Module<T>>::block_number().as_(),
+            };
+            
+            let hash = BlakeTwo256::hash_of(&utxo);
+            
+            if !<UnspentOutputs<T>>::exists(hash) {
+                <UnspentOutputs<T>>::insert(hash, utxo);
+                runtime_io::print("leftover share sent to");
+				runtime_io::print(hash.as_fixed_bytes() as &[u8]);
+            } else {
+                runtime_io::print("leftover share wasted due to hash collision");
+            }
+        }
     }
 
     fn _update_storage(transaction: &Transaction, dust: Value) -> Result {
@@ -154,8 +193,8 @@ impl<T: Trait> Module<T> {
     /// Verifies the transaction validity, returns the outcome
     fn _verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
         // 1. Verify that inputs and outputs are not empty
-        ensure!(transaction.inputs.is_empty(), "no inputs");
-        ensure!(transaction.outputs.is_empty(), "no outputs");
+        ensure!(! transaction.inputs.is_empty(), "no inputs");
+        ensure!(! transaction.outputs.is_empty(), "no outputs");
 
         {
             let input_set: BTreeMap<_, ()> = transaction
@@ -233,7 +272,12 @@ mod tests {
 
 	use runtime_io::with_externalities;
 	use primitives::{H256, Blake2Hasher};
-	use support::{impl_outer_origin, assert_ok};
+	use support::{
+        impl_outer_origin, 
+        assert_ok,
+        assert_noop,
+        assert_err,
+    };
 	use runtime_primitives::{
 		BuildStorage,
 		traits::{BlakeTwo256, IdentityLookup},
@@ -264,14 +308,20 @@ mod tests {
 	}
 
 	type Utxo = Module<Test>;
+    
+    use hex;
 
-    // pub value: Value,
-    // pub pubkey: H256, // pub key of the output, owner has to have private key
-    // pub salt: u64,
+    // Alice's Public Key: generated from_legacy_string("Alice", Some("recover"));
+    const ALICEKEY: [u8; 32] = [209, 114, 167, 76, 218, 76, 134, 89, 18, 195, 43, 160, 168, 10, 87, 174, 105, 171, 174, 65, 14, 92, 203, 89, 222, 232, 78, 47, 68, 50, 219, 79];
+    // Alice signs a token she owns
+    // TODO change to slice, https://cryptii.com/pipes/integer-encoder
+    const SIG: [u8; 64] = [203, 25, 139, 36, 34, 10, 235, 226, 189, 110, 216, 143, 155, 17, 148, 6, 191, 239, 29, 227, 118, 59, 125, 216, 222, 242, 222, 49, 68, 49, 41, 242, 128, 133, 202, 59, 127, 159, 239, 139, 18, 88, 255, 236, 155, 254, 40, 185, 42, 96, 60, 156, 203, 11, 101, 239, 228, 218, 62, 202, 205, 17, 41, 7];
+
+    // Creates a UTXO for Alice
     fn alice_utxo() -> (H256, TransactionOutput) {
 		let transaction = TransactionOutput {
 			value: Value::max_value(),
-			pubkey: H256::zero(),
+			pubkey: H256::from_slice(&ALICEKEY),
 			salt: 0,
 		};
 
@@ -289,18 +339,66 @@ mod tests {
         t.into()
 	}
 
-	#[test]
-	fn it_works_for_default_value() {
+    #[test]
+	fn empty() {
 		with_externalities(&mut new_test_ext(), || {
-			assert!(true);
+            assert!(true);
+			assert_err!(
+				Utxo::execute(Origin::INHERENT, Transaction::default()),
+				"no inputs"
+			);
+
+			assert_err!(
+				Utxo::execute(
+					Origin::INHERENT,
+					Transaction {
+						inputs: vec![TransactionInput::default()],
+						outputs: vec![],
+					}
+				),
+				"no outputs"
+			);
 		});
 	}
 
+	#[test]
+    fn valid_transaction() {
+		with_externalities(&mut new_test_ext(), || {
+			let (parent_hash, _) = alice_utxo();
+
+            // println!("parent hash: {:x?}", parent_hash.as_fixed_bytes());
+            
+			let transaction = Transaction {
+				inputs: vec![
+					TransactionInput {
+						parent_output: parent_hash,
+						signature: Signature::from_slice(&SIG),
+					}
+				],
+				outputs: vec![
+					TransactionOutput {
+						value: 100,
+						pubkey: H256::from_slice(&ALICEKEY),
+						salt: 0,
+					}
+				],
+			};
+
+			let output_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
+
+			assert_ok!(Utxo::execute(Origin::INHERENT, transaction));
+			assert!(!<UnspentOutputs<Test>>::exists(parent_hash));
+			assert!(<UnspentOutputs<Test>>::exists(output_hash));
+		});
+	}
+
+    #[test]
+    #[ignore]
     fn can_mint_utxos() {
         with_externalities(&mut new_test_ext(), || {
-            let pubkey = H256::random();      //some randome h256
+            let pubkey = H256::random();      //some random h256
             assert_ok!(Utxo::mint(Origin::INHERENT, 5, pubkey));
         });
     }
-
 }
+
