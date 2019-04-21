@@ -60,6 +60,14 @@ pub struct TransactionOutput {
     pub salt: u64,    // distinguishes outputs of same value/pubkey apart
 }
 
+// A UTXO can be locked (indefinitely) or until a certain block height
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, Hash)]
+pub enum LockStatus<BlockNumber> {
+    Locked,
+    LockedUntil(BlockNumber),
+}
+
 decl_storage! {
 	trait Store for Module<T: Trait> as Utxo {
 
@@ -75,13 +83,13 @@ decl_storage! {
 
         pub DustTotal get(leftover_total): Value;
 
-        // TODO lockedoutputs
+        // A map of outputs that are locked
+        LockedOutputs: map H256 => Option<LockStatus<T::BlockNumber>>; 
 	}
 
     add_extra_genesis {
 		config(initial_utxo): Vec<TransactionOutput>;
 	}
-
 }
 
 decl_module! {
@@ -143,6 +151,20 @@ pub enum CheckInfo<'a> {
 pub type CheckResult<'a> = std::result::Result<CheckInfo<'a>, &'static str>; // errors are already defined
 
 impl<T: Trait> Module<T> {
+    fn _lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> Result {
+        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
+		ensure!(<UnspentOutputs<T>>::exists(hash), "utxo does not exist");
+
+        if let Some(until) = until {
+            ensure!(until > <system::Module<T>>::block_number(), "block number is in the past");
+            <LockedOutputs<T>>::insert(hash, LockStatus::LockedUntil(until));    
+        } else {
+            <LockedOutputs<T>>::insert(hash, LockStatus::Locked);    
+        }
+        
+        Ok(())
+    }
+    
     //                  You almost always want &[T] over &Vec<T>
     fn _spend_dust(authorities: &[H256]) { //TODO double check
         let dust = <DustTotal<T>>::take();
@@ -342,7 +364,6 @@ mod tests {
     #[test]
 	fn empty() {
 		with_externalities(&mut new_test_ext(), || {
-            assert!(true);
 			assert_err!(
 				Utxo::execute(Origin::INHERENT, Transaction::default()),
 				"no inputs"
@@ -365,8 +386,6 @@ mod tests {
     fn valid_transaction() {
 		with_externalities(&mut new_test_ext(), || {
 			let (parent_hash, _) = alice_utxo();
-
-            // println!("parent hash: {:x?}", parent_hash.as_fixed_bytes());
             
 			let transaction = Transaction {
 				inputs: vec![
