@@ -289,7 +289,7 @@ impl_runtime_apis! {
 				// 2. Hint: remember _verify_transaction returns checkResult of totals or missing_inputs
 				let requires;
 				let priority;
-				
+
 				const INVALID_UTXO: i8 = -99;
 
 				match <utxo::Module<Runtime>>::verify_transaction(&transaction) {
@@ -308,7 +308,7 @@ impl_runtime_apis! {
 
 					Ok(utxo::CheckInfo::MissingInputs(missing)) => {
 						requires = missing
-							.iter()
+							.iter()         // copies itself into a new vec
 							.map(|hash| hash.as_fixed_bytes().to_vec())
 							.collect();
 						priority = 0;

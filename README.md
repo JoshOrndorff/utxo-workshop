@@ -40,3 +40,8 @@ https://polkadot.js.org/
 
 ## Exercise 2
 2. Build the following extensions
+
+
+## Helpful Resources
+- [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
+- [Substrate documentation](http://crates.parity.io)

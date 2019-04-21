@@ -211,9 +211,9 @@ impl<T: Trait> Module<T> {
     }
 
     /// Verifies the transaction validity, returns the outcome
-    /// Pub: Used by runtime_api::TaggedTransactionQueue
     pub fn verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
-        // 1. Verify that inputs and outputs are not empty
+        
+        // TODO
         ensure!(! transaction.inputs.is_empty(), "no inputs");
         ensure!(! transaction.outputs.is_empty(), "no outputs");
 
@@ -329,11 +329,10 @@ mod tests {
 
 	type Utxo = Module<Test>;
 
-    // Alice's Public Key: generated from_legacy_string("Alice", Some("recover"));
-    const ALICEKEY: [u8; 32] = [209, 114, 167, 76, 218, 76, 134, 89, 18, 195, 43, 160, 168, 10, 87, 174, 105, 171, 174, 65, 14, 92, 203, 89, 222, 232, 78, 47, 68, 50, 219, 79];
-    // Alice signs a token she owns
-    // TODO change to slice, https://cryptii.com/pipes/integer-encoder
-    const SIG: [u8; 64] = [203, 25, 139, 36, 34, 10, 235, 226, 189, 110, 216, 143, 155, 17, 148, 6, 191, 239, 29, 227, 118, 59, 125, 216, 222, 242, 222, 49, 68, 49, 41, 242, 128, 133, 202, 59, 127, 159, 239, 139, 18, 88, 255, 236, 155, 254, 40, 185, 42, 96, 60, 156, 203, 11, 101, 239, 228, 218, 62, 202, 205, 17, 41, 7];
+    // Alice's Public Key: from_legacy_string("Alice", Some("recover"));
+    const ALICE_KEY: [u8; 32] = [209, 114, 167, 76, 218, 76, 134, 89, 18, 195, 43, 160, 168, 10, 87, 174, 105, 171, 174, 65, 14, 92, 203, 89, 222, 232, 78, 47, 68, 50, 219, 79];
+    // Alice's Signature to spend an Output: signs a token she owns Pair::sign(&message[..])
+    const ALICE_SIG: [u8; 64] = [203, 25, 139, 36, 34, 10, 235, 226, 189, 110, 216, 143, 155, 17, 148, 6, 191, 239, 29, 227, 118, 59, 125, 216, 222, 242, 222, 49, 68, 49, 41, 242, 128, 133, 202, 59, 127, 159, 239, 139, 18, 88, 255, 236, 155, 254, 40, 185, 42, 96, 60, 156, 203, 11, 101, 239, 228, 218, 62, 202, 205, 17, 41, 7];
 
     // Creates a UTXO for Alice
     fn alice_utxo() -> (H256, TransactionOutput) {
@@ -357,8 +356,17 @@ mod tests {
         t.into()
 	}
 
+    // Exercise 1: Fortify transactions against attacks
+    // ================================================
+    // 
+    // The following tests simulate malicious UTXO transactions
+    // Implement the verify_transaction() function to thwart such attacks
+    // 
+    // Hint: Examine types CheckResult, CheckInfo for the expected behaviors of this function
+    // Hint: Make this function public, as it will be later used outside of this module
+
     #[test]
-	fn empty() {
+	fn attack_with_empty_transactions() {
 		with_externalities(&mut new_test_ext(), || {
 			assert_err!(
 				Utxo::execute(Origin::INHERENT, Transaction::default()),
@@ -378,6 +386,26 @@ mod tests {
 		});
 	}
 
+    #[test]
+    fn attack_by_double_counting() {
+
+    }
+
+    #[test]
+    fn attack_with_invalid_signature() {
+        
+    }
+
+    #[test]
+    fn attack_by_burning_outputs() {
+        // output value must be non zero
+    }
+
+    #[test]
+    fn attack_by_over_spending() {
+
+    }
+
 	#[test]
     fn valid_transaction() {
 		with_externalities(&mut new_test_ext(), || {
@@ -387,13 +415,13 @@ mod tests {
 				inputs: vec![
 					TransactionInput {
 						parent_output: parent_hash,
-						signature: Signature::from_slice(&SIG),
+						signature: Signature::from_slice(&ALICE_SIG),
 					}
 				],
 				outputs: vec![
 					TransactionOutput {
 						value: 100,
-						pubkey: H256::from_slice(&ALICEKEY),
+						pubkey: H256::from_slice(&ALICE_KEY),
 						salt: 0,
 					}
 				],
@@ -406,7 +434,7 @@ mod tests {
 			assert!(<UnspentOutputs<Test>>::exists(output_hash));
 		});
 	}
-
+    
     #[test]
     #[ignore]
     fn can_mint_utxos() {
