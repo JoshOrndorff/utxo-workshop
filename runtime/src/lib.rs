@@ -5,6 +5,8 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
 
+#![allow(deprecated)]
+
 #[cfg(feature = "std")]
 use serde_derive::{Serialize, Deserialize};
 use parity_codec::{Encode, Decode};
@@ -23,8 +25,6 @@ use client::{
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
 use version::NativeVersion;
-
-extern crate hex;
 
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
@@ -274,8 +274,62 @@ impl_runtime_apis! {
 		}
 	}
 
+	// TODO: https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html
 	impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
+			use support::IsSubType;
+			use runtime_primitives::{
+				traits::Hash,
+				transaction_validity::{TransactionLongevity, TransactionPriority, TransactionValidity},
+			};
+
+			// 1. only modify UTXO type transactions
+			// how do you read this fn									// ret: reference to a Call enum
+			if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>>::is_aux_sub_type(&tx.function) {
+				// 2. Hint: remember _verify_transaction returns checkResult of totals or missing_inputs
+				let requires;
+				let priority;
+				
+				const INVALID_UTXO: i8 = -99;
+
+				match <utxo::Module<Runtime>>::verify_transaction(&transaction) {
+					Err(e) => {
+						runtime_io::print(e);
+						return TransactionValidity::Invalid(INVALID_UTXO);
+					}
+
+					Ok(utxo::CheckInfo::Totals {input, output}) => {
+						requires = Vec::new();
+
+						// Priority is based on a transaction fee that is equal to the leftover value
+						let max_priority = utxo::Value::from(TransactionPriority::max_value());
+						priority = max_priority.min(input - output) as TransactionPriority;
+					}
+
+					Ok(utxo::CheckInfo::MissingInputs(missing)) => {
+						requires = missing
+							.iter()
+							.map(|hash| hash.as_fixed_bytes().to_vec())
+							.collect();
+						priority = 0;
+					}
+				}
+
+				// Set output tags
+				let provides = transaction.outputs
+					.iter()
+					.map(|output| BlakeTwo256::hash_of(output).as_fixed_bytes().to_vec())
+					.collect();
+
+				return TransactionValidity::Valid {
+					requires,
+					provides,
+					priority,
+					longevity: TransactionLongevity::max_value(),
+				};
+			}
+			
+			// For non UTXO::execute extrinsics
 			Executive::validate_transaction(tx)
 		}
 	}

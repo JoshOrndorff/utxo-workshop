@@ -12,21 +12,11 @@ use support::{
 use system::ensure_inherent;
 use primitives::{H256, H512};
 use rstd::collections::btree_map::BTreeMap;
-use primitives::ed25519::{Public, Pair};
-use runtime_primitives::traits::{
-    As, 
-    Hash, 
-    BlakeTwo256, 
-    CheckedDiv,
-    CheckedSub,
-    CheckedAdd,
-    CheckedMul,
-};
-use runtime_primitives::{Serialize, Deserialize}; //update
+use runtime_primitives::traits::{As, Hash, BlakeTwo256};
+use runtime_primitives::{Serialize, Deserialize};
 use runtime_io::{ed25519_verify};
-// use serde::{de, Serializer, Deserializer}; //not sure about this
-use parity_codec::{Codec, Encode, Decode}; //update
-use super::Consensus; //Q: is this ok?
+use parity_codec::{Encode, Decode};
+use super::Consensus;
 
 pub trait Trait: system::Trait {
 	type Event: From<Event> + Into<<Self as system::Trait>::Event>;
@@ -35,8 +25,8 @@ pub trait Trait: system::Trait {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct Transaction {
-    inputs: Vec<TransactionInput>,
-    outputs: Vec<TransactionOutput>
+    pub inputs: Vec<TransactionInput>,
+    pub outputs: Vec<TransactionOutput>
 }
 
 type Signature = H512; 
@@ -116,7 +106,7 @@ decl_module! {
             ensure_inherent(origin)?;
 
             // Verify the transaction
-            let dust = match Self::_verify_transaction(&transaction)? {
+            let dust = match Self::verify_transaction(&transaction)? {
                 CheckInfo::Totals{input, output} => input - output,
                 CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
             };
@@ -221,7 +211,8 @@ impl<T: Trait> Module<T> {
     }
 
     /// Verifies the transaction validity, returns the outcome
-    fn _verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
+    /// Pub: Used by runtime_api::TaggedTransactionQueue
+    pub fn verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
         // 1. Verify that inputs and outputs are not empty
         ensure!(! transaction.inputs.is_empty(), "no inputs");
         ensure!(! transaction.outputs.is_empty(), "no outputs");
@@ -256,7 +247,7 @@ impl<T: Trait> Module<T> {
         let mut missing_utxo = Vec::new();
         for input in transaction.inputs.iter() {
             if let Some(output) = <UnspentOutputs<T>>::get(&input.parent_output) {
-                // ensure!(!<lockedoutputs<T>>::exists(&input.parent_output), "utxo is locked");
+                ensure!(! <LockedOutputs<T>>::exists(&input.parent_output), "utxo is locked");
 
                 // Check uxto authorization
                 ensure!(
@@ -305,7 +296,6 @@ mod tests {
 	use support::{
         impl_outer_origin, 
         assert_ok,
-        assert_noop,
         assert_err,
     };
 	use runtime_primitives::{
@@ -338,8 +328,6 @@ mod tests {
 	}
 
 	type Utxo = Module<Test>;
-    
-    use hex;
 
     // Alice's Public Key: generated from_legacy_string("Alice", Some("recover"));
     const ALICEKEY: [u8; 32] = [209, 114, 167, 76, 218, 76, 134, 89, 18, 195, 43, 160, 168, 10, 87, 174, 105, 171, 174, 65, 14, 92, 203, 89, 222, 232, 78, 47, 68, 50, 219, 79];

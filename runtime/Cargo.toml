@@ -4,9 +4,6 @@ edition = '2018'
 name = 'utxo-runtime'
 version = '1.0.0'
 
-[dependencies]
-hex = "0.3.2"
-
 [dependencies.aura]
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'
