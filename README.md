@@ -1,15 +1,23 @@
 # UTXO on Substrate
 
-This workshop takes you through a full implementaion of UTXO on Substrate. This repo is structured in workshop format.
+A UTXO chain implementation on Substrate
+
+**Reference**: This repo is an updated reimplementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
+
+
+## Workshop Format
+
+Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
+
+> Note: `Master` branch contains all the answers. Where's the fun in that?
 
 **Estimated time**: 2 hours
 
-**You will learn:**
+### You will learn
 - How to implement the UTXO model on Substrate
 - How to secure UTXO transactions against attacks
 - How to customize transaction pool logic on Substrate
-
-**Reference**: This repo is an updated reimplementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE). 
+- Good coding patterns for working with Substrate & Rust
 
 ## Getting started
 
@@ -29,7 +37,7 @@ cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
 ### Clone the boilerplate
 ```
-git clone ...
+git clone https://github.com/nczhu/utxo-workshop.git
 git checkout -b workshop
 ```
 
@@ -41,9 +49,9 @@ UTXO validates transactions as follows:
 - Set Input to “spent”
 - Save the new unspent outputs
 
-Similarly in our implementation, we need to prevent malicious users from sending bad transactions.
+Similarly in our UTXO implementation, we need to prevent malicious users from sending bad transactions. `utxo.rs` contains some tests that simulate these malicious attacks. 
 
-The following tests simulate transaction attacks to our utxo implementation. The goal is to perform security checks to ensure that only valid transactions will go through.
+Your challenge is to extend the implementation such that only secure transactions will go through.
 
 *Hint: Remember the check-before-state-change pattern!*
 
@@ -52,9 +60,21 @@ The following tests simulate transaction attacks to our utxo implementation. The
 
 1. Run cargo test: `cargo test -p utxo-runtime`
 
-2. Extend `verify_transaction()` to make the following tests pass. 
+2. Notice that 7/8 tests are failing!
+```
+failures:
+    utxo::tests::attack_by_double_counting_input
+    utxo::tests::attack_by_double_generating_output
+    utxo::tests::attack_by_over_spending
+    utxo::tests::attack_by_overflowing
+    utxo::tests::attack_by_permanently_sinking_outputs
+    utxo::tests::attack_with_empty_transactions
+    utxo::tests::attack_with_invalid_signature
+```
 
-Hint: You may want to make them pass in this order!
+3. In `utxo.rs`, extend `verify_transaction()` to make the following tests pass. 
+
+*Hint: You may want to make them pass in this order!*
 
 ```
 [0] test utxo::tests::attack_with_empty_transactions ... ok
@@ -70,11 +90,13 @@ Hint: You may want to make them pass in this order!
 
 **Scenario**: Imagine a situation where Alice pays Bob via **transaction A**, then Bob uses his new utxo to pay Charlie, via **transaction B**. In short, B depends on the success of A. 
 
-However, depending on network latency, the runtime might deliver transaction B to a node's transaction pool before delivering transaction A!
+However, depending on network latency, the runtime might deliver **transaction B** to a node's transaction pool before delivering **transaction A**!
 
-A naive solution is to simply drop transaction B.
+Your challenge is to overcome this race condition.
 
-But Substrate lets you implement transaction ordering logic, such that you can wait for transaction A befoere dispatching B.
+A naive solution is to simply drop transaction B. But Substrate lets you implement transaction ordering logic. 
+
+In Substrate, you can specify the requirements for dispatching a transaction, e.g. wait for transaction A to arrive before dispatching B.
 
 Directions: 
 1. Read about a [transaction lifecycle](https://docs.substrate.dev/docs/transaction-lifecycle-in-substrate) in Substrate
@@ -101,7 +123,7 @@ You can try building the following extensions:
 - [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
 - [Polkadot UI](https://polkadot.js.org/)
 
-### Launching the UI
+#### Launching the UI
 ```
 ./build.sh              // build wasm
 cargo build —release    // build binary
