@@ -7,6 +7,9 @@
 
 #![allow(deprecated)]
 
+// extern crate serde;
+// extern crate serde_derive;
+
 #[cfg(feature = "std")]
 use serde_derive::{Serialize, Deserialize};
 use parity_codec::{Encode, Decode};

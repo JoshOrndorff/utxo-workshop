@@ -6,14 +6,16 @@ use support::{
     StorageValue,
     StorageMap,
     ensure,
-    dispatch::Result
+    dispatch::{Result, Vec}
 };
 
 use system::ensure_inherent;
 use primitives::{H256, H512};
 use rstd::collections::btree_map::BTreeMap;
 use runtime_primitives::traits::{As, Hash, BlakeTwo256};
-use runtime_primitives::{Serialize, Deserialize};
+
+#[cfg(feature = "std")]
+use serde_derive::{Serialize, Deserialize};
 use runtime_io::{ed25519_verify};
 use parity_codec::{Encode, Decode};
 use super::Consensus;
@@ -34,10 +36,9 @@ type Signature = H512;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct TransactionInput {
-    // Referen  ce to the input value
+    // Reference to the input value
     pub parent_output: H256,  // referred UTXO
     pub signature: Signature, // proof that owner is authorized to spend referred UTXO
-    // omitted traits ord, partialord bc its not implemented for signature yet
 }
 
 pub type Value = u128; // Alias u128 to Value
