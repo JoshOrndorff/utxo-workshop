@@ -135,7 +135,7 @@ pub enum CheckInfo<'a> {
     MissingInputs(Vec<&'a H256>),
 }
 
-pub type CheckResult<'a> = std::result::Result<CheckInfo<'a>, &'static str>;
+pub type CheckResult<'a> = rstd::result::Result<CheckInfo<'a>, &'static str>;
 
 
 impl<T: Trait> Module<T> {
