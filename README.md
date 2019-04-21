@@ -2,7 +2,7 @@
 
 A UTXO chain implementation on Substrate
 
-**Reference**: This repo is an updated reimplementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
+**Reference**: This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
 
 
 ## Workshop Format
