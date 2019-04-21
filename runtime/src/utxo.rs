@@ -338,7 +338,7 @@ mod tests {
     fn alice_utxo() -> (H256, TransactionOutput) {
 		let transaction = TransactionOutput {
 			value: Value::max_value(),
-			pubkey: H256::from_slice(&ALICEKEY),
+			pubkey: H256::from_slice(&ALICE_KEY),
 			salt: 0,
 		};
 
@@ -369,7 +369,7 @@ mod tests {
 	fn attack_with_empty_transactions() {
 		with_externalities(&mut new_test_ext(), || {
 			assert_err!(
-				Utxo::execute(Origin::INHERENT, Transaction::default()),
+				Utxo::execute(Origin::INHERENT, Transaction::default()), // an empty trx
 				"no inputs"
 			);
 
@@ -377,7 +377,7 @@ mod tests {
 				Utxo::execute(
 					Origin::INHERENT,
 					Transaction {
-						inputs: vec![TransactionInput::default()],
+						inputs: vec![TransactionInput::default()], // an empty trx
 						outputs: vec![],
 					}
 				),
@@ -387,23 +387,153 @@ mod tests {
 	}
 
     #[test]
-    fn attack_by_double_counting() {
+    fn attack_by_double_counting_input() {
+        with_externalities(&mut new_test_ext(), || {
+            let (parent_hash, _) = alice_utxo();
 
+            let transaction = Transaction {
+				inputs: vec![
+					TransactionInput {
+						parent_output: parent_hash,
+						signature: Signature::from_slice(&ALICE_SIG),
+					}, 
+                    TransactionInput {
+						parent_output: parent_hash,     // Double spending input!
+						signature: Signature::from_slice(&ALICE_SIG),
+					}
+
+				],
+				outputs: vec![
+					TransactionOutput {
+						value: 100,
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 0,
+					}
+				],
+			};
+
+            assert_err!(Utxo::execute(Origin::INHERENT, transaction), 
+                "each input must only be used once"
+            );
+        });
+    }
+
+    #[test]
+    fn attack_by_double_generating_output() {
+        with_externalities(&mut new_test_ext(), || {
+            let (parent_hash, _) = alice_utxo();
+
+            let transaction = Transaction {
+				inputs: vec![
+					TransactionInput {
+						parent_output: parent_hash,
+						signature: Signature::from_slice(&ALICE_SIG),
+					}
+				],
+				outputs: vec![
+					TransactionOutput {
+						value: 100,
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 0,
+					},
+                    TransactionOutput {         // Same output defined here!
+						value: 100,
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 0,
+					}
+				],
+			};
+
+            assert_err!(Utxo::execute(Origin::INHERENT, transaction), 
+                "each output must be defined only once"
+            );
+        });
     }
 
     #[test]
     fn attack_with_invalid_signature() {
-        
+        with_externalities(&mut new_test_ext(), || {
+            let (parent_hash, _) = alice_utxo();
+            
+			let transaction = Transaction {
+				inputs: vec![
+					TransactionInput {
+						parent_output: parent_hash,
+						signature: H512::random(),  // Just a random signature!
+					}
+				],
+				outputs: vec![
+					TransactionOutput {
+						value: 100,
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 0,
+					}
+				],
+			};
+
+			assert_err!(Utxo::execute(Origin::INHERENT, transaction), 
+                "signature must be valid"
+            );
+        });
     }
 
     #[test]
-    fn attack_by_burning_outputs() {
-        // output value must be non zero
+    fn attack_by_permanently_sinking_outputs() {
+        with_externalities(&mut new_test_ext(), || {
+            let (parent_hash, _) = alice_utxo();
+
+            let transaction = Transaction {
+				inputs: vec![
+					TransactionInput {
+						parent_output: parent_hash,
+						signature: Signature::from_slice(&ALICE_SIG),
+					}
+				],
+				outputs: vec![
+					TransactionOutput {
+						value: 0,               // A 0 value output burns this output forever!
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 0,
+					}
+				],
+			};
+
+            assert_err!(Utxo::execute(Origin::INHERENT, transaction), 
+                "output value must be nonzero"
+            );
+        });
     }
 
     #[test]
     fn attack_by_over_spending() {
+        with_externalities(&mut new_test_ext(), || {
+            let (parent_hash, _) = alice_utxo();
 
+            let transaction = Transaction {
+				inputs: vec![
+					TransactionInput {
+						parent_output: parent_hash,
+						signature: Signature::from_slice(&ALICE_SIG),
+					}
+				],
+				outputs: vec![
+					TransactionOutput {
+						value: Value::max_value(),
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 0,
+					},
+                    TransactionOutput {
+						value: Value::max_value() - 1 , // Outputing almost double the input value!
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 0,
+					}
+				],
+			};
+
+            assert_err!(Utxo::execute(Origin::INHERENT, transaction), 
+                "output value must be nonzero"
+            );
+        });
     }
 
 	#[test]
@@ -434,14 +564,5 @@ mod tests {
 			assert!(<UnspentOutputs<Test>>::exists(output_hash));
 		});
 	}
-    
-    #[test]
-    #[ignore]
-    fn can_mint_utxos() {
-        with_externalities(&mut new_test_ext(), || {
-            let pubkey = H256::random();      //some random h256
-            assert_ok!(Utxo::mint(Origin::INHERENT, 5, pubkey));
-        });
-    }
 }
 
