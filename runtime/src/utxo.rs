@@ -150,8 +150,10 @@ pub enum CheckInfo<'a> {
 
 pub type CheckResult<'a> = std::result::Result<CheckInfo<'a>, &'static str>; // errors are already defined
 
+
 impl<T: Trait> Module<T> {
-    fn _lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> Result {
+    // TODO take this out into a trait
+    pub fn _lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> Result {
         ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
 		ensure!(<UnspentOutputs<T>>::exists(hash), "utxo does not exist");
 
@@ -162,6 +164,12 @@ impl<T: Trait> Module<T> {
             <LockedOutputs<T>>::insert(hash, LockStatus::Locked);    
         }
         
+        Ok(())
+    }
+
+    pub fn _unlock_utxo(hash: &H256) -> Result {
+        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
+        <LockedOutputs<T>>::remove(hash);
         Ok(())
     }
     
