@@ -7,9 +7,6 @@
 
 #![allow(deprecated)]
 
-// extern crate serde;
-// extern crate serde_derive;
-
 #[cfg(feature = "std")]
 use serde_derive::{Serialize, Deserialize};
 use parity_codec::{Encode, Decode};
@@ -286,10 +283,7 @@ impl_runtime_apis! {
 				transaction_validity::{TransactionLongevity, TransactionPriority, TransactionValidity},
 			};
 
-			// 1. only modify UTXO type transactions
-			// how do you read this fn									// ret: reference to a Call enum
 			if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>>::is_aux_sub_type(&tx.function) {
-				// 2. Hint: remember _verify_transaction returns checkResult of totals or missing_inputs
 				let requires;
 				let priority;
 
