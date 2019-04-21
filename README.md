@@ -1,6 +1,8 @@
 # UTXO on Substrate
 
-This workshop takes you through a full implementaion of UTXO on Substrate. This repo is structured in workshop format.
+This workshop takes you through a full implementaion of UTXO on Substrate.
+
+`workshop` branch: workshop starter boilerplate.
 
 **Estimated time**: 2 hours
 
