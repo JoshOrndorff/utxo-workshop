@@ -37,6 +37,10 @@ cargo install --git https://github.com/alexcrichton/wasm-gc
 ```zsh
 git clone https://github.com/nczhu/utxo-workshop.git
 git checkout -b workshop
+
+# Double check that it builds correctly
+./build.sh
+cargo build --release
 ```
 
 ## Exercise 1: Security
