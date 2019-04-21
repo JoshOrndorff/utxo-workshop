@@ -61,8 +61,6 @@ pub enum LockStatus<BlockNumber> {
 decl_storage! {
 	trait Store for Module<T: Trait> as Utxo {
 
-        // pub UnspentOutputs get(unspent_outputs): map H256 => Option<TransactionOutput>;
-
         UnspentOutputs build(|config: &GenesisConfig<T>| {
 			config.initial_utxo
 				.iter()
