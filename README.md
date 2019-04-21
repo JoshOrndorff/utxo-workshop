@@ -5,11 +5,11 @@ A UTXO chain implementation on Substrate
 **Reference**: This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
 
 
-## Workshop Format
+## Workshop
 
-Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
+**Getting started**: Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
 
-> Note: `Master` branch contains all the answers. Where's the fun in that?
+> Note: This `Master` branch contains all the answers. Try not to peek!
 
 **Estimated time**: 2 hours
 
@@ -18,8 +18,6 @@ Checkout the `workshop` branch to get started on this workshop. The following st
 - How to secure UTXO transactions against attacks
 - How to customize transaction pool logic on Substrate
 - Good coding patterns for working with Substrate & Rust
-
-## Getting started
 
 ## Installation
 
