@@ -24,7 +24,7 @@ Checkout the `workshop` branch to get started on this workshop. The following st
 ## Installation
 
 ### To install Rust
-```
+```zsh
 curl https://sh.rustup.rs -sSf | sh
 
 # On Windows, download and run rustup-init.exe
@@ -36,7 +36,7 @@ rustup update stable
 cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
 ### Clone the boilerplate
-```
+```zsh
 git clone https://github.com/nczhu/utxo-workshop.git
 git checkout -b workshop
 ```
@@ -61,7 +61,7 @@ Your challenge is to extend the implementation such that only secure transaction
 1. Run cargo test: `cargo test -p utxo-runtime`
 
 2. Notice that 7/8 tests are failing!
-```
+```zsh
 failures:
     utxo::tests::attack_by_double_counting_input
     utxo::tests::attack_by_double_generating_output
@@ -76,7 +76,7 @@ failures:
 
 *Hint: You may want to make them pass in this order!*
 
-```
+```zsh
 [0] test utxo::tests::attack_with_empty_transactions ... ok
 [1] test utxo::tests::attack_by_double_counting_input ... ok
 [2] test utxo::tests::attack_by_double_generating_output ... ok
@@ -124,7 +124,7 @@ You can try building the following extensions:
 - [Polkadot UI](https://polkadot.js.org/)
 
 #### Launching the UI
-```
+```zsh
 ./build.sh              // build wasm
 cargo build —release    // build binary
 ./target/release/utxo-runtime purge-chain -—dev // or
