@@ -85,22 +85,6 @@ decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        // custom function for minting tokens (instead of doing in genesis config)
-        fn mint(origin, value: Value, pubkey: H256) -> Result {
-            ensure_inherent(origin)?;
-            let salt:u64 = <system::Module<T>>::block_number().as_();
-            let utxo = TransactionOutput { value, pubkey, salt };
-            let hash = BlakeTwo256::hash_of(&utxo); 
-
-            if !<UnspentOutputs<T>>::exists(hash) {
-                <UnspentOutputs<T>>::insert(hash, utxo);
-            } else {
-                runtime_io::print("cannot mint due to hash collision");
-            }
-            
-            Ok(())
-        }
-
         fn execute(origin, transaction: Transaction) -> Result {
             ensure_inherent(origin)?;
 
@@ -112,6 +96,23 @@ decl_module! {
 
             // Update unspent outputs
             Self::_update_storage(&transaction, dust)?;
+            
+            Ok(())
+        }
+
+        // custom function for minting tokens
+        // Be very careful with this!!
+        fn mint(origin, value: Value, pubkey: H256) -> Result {
+            ensure_inherent(origin)?;
+            let salt:u64 = <system::Module<T>>::block_number().as_();
+            let utxo = TransactionOutput { value, pubkey, salt };
+            let hash = BlakeTwo256::hash_of(&utxo); 
+
+            if !<UnspentOutputs<T>>::exists(hash) {
+                <UnspentOutputs<T>>::insert(hash, utxo);
+            } else {
+                runtime_io::print("cannot mint due to hash collision");
+            }
             
             Ok(())
         }
