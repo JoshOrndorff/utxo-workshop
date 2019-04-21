@@ -59,7 +59,8 @@ Hint: You may want to make them pass in this order!
 [2] test utxo::tests::attack_by_double_generating_output ... ok
 [3] test utxo::tests::attack_with_invalid_signature ... ok
 [4] test utxo::tests::attack_by_permanently_sinking_outputs ... ok
-[5] test utxo::tests::attack_by_over_spending ... ok
+[5] test utxo::tests::attack_by_overflowing ... ok
+[6] test utxo::tests::attack_by_over_spending ... ok
 ```
 
 ### Answers

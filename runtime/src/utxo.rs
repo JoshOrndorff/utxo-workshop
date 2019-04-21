@@ -328,16 +328,32 @@ mod tests {
 	}
 
 	type Utxo = Module<Test>;
-
+    
+    // Test set up
     // Alice's Public Key: from_legacy_string("Alice", Some("recover"));
     const ALICE_KEY: [u8; 32] = [209, 114, 167, 76, 218, 76, 134, 89, 18, 195, 43, 160, 168, 10, 87, 174, 105, 171, 174, 65, 14, 92, 203, 89, 222, 232, 78, 47, 68, 50, 219, 79];
-    // Alice's Signature to spend an Output: signs a token she owns Pair::sign(&message[..])
+    
+    // Alice's Signature to spend alice_utxo(): signs a token she owns Pair::sign(&message[..])
     const ALICE_SIG: [u8; 64] = [203, 25, 139, 36, 34, 10, 235, 226, 189, 110, 216, 143, 155, 17, 148, 6, 191, 239, 29, 227, 118, 59, 125, 216, 222, 242, 222, 49, 68, 49, 41, 242, 128, 133, 202, 59, 127, 159, 239, 139, 18, 88, 255, 236, 155, 254, 40, 185, 42, 96, 60, 156, 203, 11, 101, 239, 228, 218, 62, 202, 205, 17, 41, 7];
 
-    // Creates a UTXO for Alice
+    // Alice's Signature to spend alice_utxo_100(): signs a token she owns Pair::sign(&message[..])
+    const ALICE_SIG100: [u8; 64] = [37, 190, 14, 182, 163, 218, 61, 32, 245, 202, 94, 196, 186, 129, 171, 128, 91, 163, 51, 30, 146, 219, 237, 78, 145, 75, 195, 175, 212, 99, 230, 232, 234, 49, 208, 115, 146, 75, 228, 253, 244, 238, 116, 198, 138, 15, 111, 214, 243, 157, 62, 146, 122, 211, 217, 74, 27, 193, 223, 79, 114, 173, 233, 1];
+
+    // Creates a max value UTXO for Alice
     fn alice_utxo() -> (H256, TransactionOutput) {
 		let transaction = TransactionOutput {
 			value: Value::max_value(),
+			pubkey: H256::from_slice(&ALICE_KEY),
+			salt: 0,
+		};
+
+		(BlakeTwo256::hash_of(&transaction), transaction)
+	}
+
+    // Creates a 100 value UTXO for Alice
+    fn alice_utxo_100() -> (H256, TransactionOutput) {
+		let transaction = TransactionOutput {
+			value: 100,
 			pubkey: H256::from_slice(&ALICE_KEY),
 			salt: 0,
 		};
@@ -350,7 +366,7 @@ mod tests {
 	fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
 		let mut t = system::GenesisConfig::<Test>::default().build_storage().unwrap().0;
         t.extend(GenesisConfig::<Test>{
-            initial_utxo: vec![alice_utxo().1],
+            initial_utxo: vec![alice_utxo().1, alice_utxo_100().1],
             ..Default::default()
         }.build_storage().unwrap().0);
         t.into()
@@ -505,7 +521,7 @@ mod tests {
     }
 
     #[test]
-    fn attack_by_over_spending() {
+    fn attack_by_overflowing() {
         with_externalities(&mut new_test_ext(), || {
             let (parent_hash, _) = alice_utxo();
 
@@ -520,18 +536,50 @@ mod tests {
 					TransactionOutput {
 						value: Value::max_value(),
 						pubkey: H256::from_slice(&ALICE_KEY),
-						salt: 0,
+						salt: 1,
 					},
                     TransactionOutput {
-						value: Value::max_value() - 1 , // Outputing almost double the input value!
+						value: 10 as Value, // Attempts to do overflow total output value
 						pubkey: H256::from_slice(&ALICE_KEY),
-						salt: 0,
+						salt: 1,
 					}
 				],
 			};
 
             assert_err!(Utxo::execute(Origin::INHERENT, transaction), 
-                "output value must be nonzero"
+                "output value overflow"
+            );
+        });
+    }
+
+    #[test]
+    fn attack_by_over_spending() {
+        with_externalities(&mut new_test_ext(), || {
+            let (parent_hash, _) = alice_utxo_100();
+
+            let transaction = Transaction {
+				inputs: vec![
+					TransactionInput {
+						parent_output: parent_hash,
+						signature: Signature::from_slice(&ALICE_SIG100),
+					}
+				],
+				outputs: vec![
+					TransactionOutput {
+						value: 100 as Value,
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 1,
+					},
+                    TransactionOutput {
+						value: 1 as Value,  // Creates 1 new utxo out of thin air!
+						pubkey: H256::from_slice(&ALICE_KEY),
+						salt: 1,
+					}
+				],
+			};
+
+            assert_err!(Utxo::execute(Origin::INHERENT, transaction), 
+                "output value must not exceed input value"
             );
         });
     }
@@ -552,7 +600,7 @@ mod tests {
 					TransactionOutput {
 						value: 100,
 						pubkey: H256::from_slice(&ALICE_KEY),
-						salt: 0,
+						salt: 2,
 					}
 				],
 			};
