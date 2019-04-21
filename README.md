@@ -13,13 +13,12 @@ This workshop takes you through a full implementaion of UTXO on Substrate.
 
 **Reference**: This repo is an updated reimplementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE). 
 
-*Note: for the full implementation, check out the `solution` branch. The `master` branch is a starting boilerplate for workshops.*
-
 ## Getting started
 
 ## Installation
+
+### To install Rust
 ```
-# To install Rust:
 curl https://sh.rustup.rs -sSf | sh
 
 # On Windows, download and run rustup-init.exe
@@ -29,9 +28,11 @@ rustup update nightly
 rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup update stable
 cargo install --git https://github.com/alexcrichton/wasm-gc
-
-# Clone the repo
-./build.sh
+```
+### Clone the boilerplate
+```
+git clone ...
+git checkout -b workshop
 ```
 
 ## Exercise 1: Security
@@ -49,6 +50,8 @@ The following tests simulate transaction attacks to our utxo implementation. The
 *Hint: Remember the check-before-state-change pattern!*
 
 ### Directions
+*Make sure you are on the `workshop` branch*
+
 1. Run cargo test: `cargo test -p utxo-runtime`
 
 2. Extend `verify_transaction()` to make the following tests pass. 
@@ -64,9 +67,6 @@ Hint: You may want to make them pass in this order!
 [5] test utxo::tests::attack_by_overflowing ... ok
 [6] test utxo::tests::attack_by_over_spending ... ok
 ```
-
-### Answers
-Answers are available by pulling the branch: `security-answers`. But where's the fun in that?
 
 ## Exercise 2: Transaction Ordering
 
@@ -93,15 +93,10 @@ if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Ru
 }
 ```
 
-
-### Answers
-Answers are available by pulling the branch: `ordering-answers`.
-
-
 ## Exercise 3: Extensions
 You can try building the following extensions:
-- 
-- 
+- Give transactions in the pool a smarter longevity lifetime
+- Implement coinbase transactions, by letting users add value through work
 
 ## Helpful Resources
 - [Substrate documentation](http://crates.parity.io)

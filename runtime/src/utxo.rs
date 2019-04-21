@@ -1,4 +1,3 @@
-/// A reimplementation of Dima's UTXO chain
 use support::{
     decl_module, 
     decl_storage, 
@@ -6,14 +5,16 @@ use support::{
     StorageValue,
     StorageMap,
     ensure,
-    dispatch::Result
+    dispatch::{Result, Vec}
 };
 
 use system::ensure_inherent;
 use primitives::{H256, H512};
 use rstd::collections::btree_map::BTreeMap;
 use runtime_primitives::traits::{As, Hash, BlakeTwo256};
-use runtime_primitives::{Serialize, Deserialize};
+
+#[cfg(feature = "std")]
+use serde_derive::{Serialize, Deserialize};
 use runtime_io::{ed25519_verify};
 use parity_codec::{Encode, Decode};
 use super::Consensus;
@@ -34,10 +35,10 @@ type Signature = H512;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct TransactionInput {
-    // Referen  ce to the input value
-    pub parent_output: H256,  // referred UTXO
-    pub signature: Signature, // proof that owner is authorized to spend referred UTXO
-    // omitted traits ord, partialord bc its not implemented for signature yet
+    // Reference to the input value
+    pub parent_output: H256,
+    // Proof that owner is authorized to spend referred UTXO
+    pub signature: Signature,
 }
 
 pub type Value = u128; // Alias u128 to Value
@@ -84,7 +85,26 @@ decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        // custom function for minting tokens (instead of doing in genesis config)
+        pub fn execute(origin, transaction: Transaction) -> Result {
+            ensure_inherent(origin)?;
+
+            // Verify the transaction
+            let dust = match Self::verify_transaction(&transaction)? {
+                CheckInfo::Totals{input, output} => input - output,
+                CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
+            };
+
+            // Update unspent outputs
+            Self::_update_storage(&transaction, dust)?;
+            
+            // Emit event
+            Self::deposit_event(Event::TransactionExecuted(transaction));
+
+            Ok(())
+        }
+
+        // custom function for minting tokens
+        // Be very careful with this!!
         fn mint(origin, value: Value, pubkey: H256) -> Result {
             ensure_inherent(origin)?;
             let salt:u64 = <system::Module<T>>::block_number().as_();
@@ -100,25 +120,8 @@ decl_module! {
             Ok(())
         }
 
-        fn execute(origin, transaction: Transaction) -> Result {
-            ensure_inherent(origin)?;
-
-            // Verify the transaction
-            let dust = match Self::verify_transaction(&transaction)? {
-                CheckInfo::Totals{input, output} => input - output,
-                CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
-            };
-
-            // Update unspent outputs
-            Self::_update_storage(&transaction, dust)?;
-            
-            Ok(())
-        }
-
         fn on_finalize() {
-            //                                                        Q: this ok?
             let auth:Vec<_> = Consensus::authorities().iter().map(|x| x.0.into() ).collect();
-                                    //Vec<T::SessionKey>
             Self::_spend_dust(&auth);
         }
 	}
@@ -129,18 +132,17 @@ decl_event!(
 		TransactionExecuted(Transaction),
 	}
 );
-// nice coding pattern, everytime you return a value, 1. wrap enum in resultType 2. use enum to represent different outcomes
 
 pub enum CheckInfo<'a> {
-    Totals { input: Value, output: Value },   // struct
-    MissingInputs(Vec<&'a H256>),     //Q: why is there a lifetime/reference here?
+    Totals { input: Value, output: Value },
+    MissingInputs(Vec<&'a H256>),
 }
 
-pub type CheckResult<'a> = std::result::Result<CheckInfo<'a>, &'static str>; // errors are already defined
+pub type CheckResult<'a> = rstd::result::Result<CheckInfo<'a>, &'static str>;
 
 
 impl<T: Trait> Module<T> {
-    // TODO take this out into a trait
+
     pub fn _lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> Result {
         ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
 		ensure!(<UnspentOutputs<T>>::exists(hash), "utxo does not exist");
@@ -161,13 +163,11 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
     
-    //                  You almost always want &[T] over &Vec<T>
-    fn _spend_dust(authorities: &[H256]) { //TODO double check
+    fn _spend_dust(authorities: &[H256]) {
         let dust = <DustTotal<T>>::take();
         let dust_per_authority: Value = dust.checked_div(authorities.len() as Value).ok_or("No authorities").unwrap();
         if dust_per_authority == 0 { return };
         
-        // Q: Should we save the remainder here?
         let dust_remainder = dust.checked_sub(dust_per_authority * authorities.len() as Value).ok_or("Sub underflow").unwrap();
         <DustTotal<T>>::put(dust_remainder as Value);
         
@@ -215,12 +215,11 @@ impl<T: Trait> Module<T> {
 
         Ok(CheckInfo::Totals { input: 0, output: 0 })
         
-        
     }
 
 }
 
-/// tests for this module
+/// Tests for this module
 #[cfg(test)]
 mod tests {
 	use super::*;

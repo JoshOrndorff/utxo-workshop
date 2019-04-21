@@ -283,50 +283,8 @@ impl_runtime_apis! {
 				transaction_validity::{TransactionLongevity, TransactionPriority, TransactionValidity},
 			};
 
-			// 1. only modify UTXO type transactions
-			// how do you read this fn									// ret: reference to a Call enum
 			if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>>::is_aux_sub_type(&tx.function) {
-				// 2. Hint: remember _verify_transaction returns checkResult of totals or missing_inputs
-				let requires;
-				let priority;
-
-				const INVALID_UTXO: i8 = -99;
-
-				match <utxo::Module<Runtime>>::verify_transaction(&transaction) {
-					Err(e) => {
-						runtime_io::print(e);
-						return TransactionValidity::Invalid(INVALID_UTXO);
-					}
-
-					Ok(utxo::CheckInfo::Totals {input, output}) => {
-						requires = Vec::new();
-
-						// Priority is based on a transaction fee that is equal to the leftover value
-						let max_priority = utxo::Value::from(TransactionPriority::max_value());
-						priority = max_priority.min(input - output) as TransactionPriority;
-					}
-
-					Ok(utxo::CheckInfo::MissingInputs(missing)) => {
-						requires = missing
-							.iter()         // copies itself into a new vec
-							.map(|hash| hash.as_fixed_bytes().to_vec())
-							.collect();
-						priority = 0;
-					}
-				}
-
-				// Set output tags
-				let provides = transaction.outputs
-					.iter()
-					.map(|output| BlakeTwo256::hash_of(output).as_fixed_bytes().to_vec())
-					.collect();
-
-				return TransactionValidity::Valid {
-					requires,
-					provides,
-					priority,
-					longevity: TransactionLongevity::max_value(),
-				};
+				// TODO
 			}
 			
 			// For non UTXO::execute extrinsics
