@@ -85,7 +85,7 @@ decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        fn execute(origin, transaction: Transaction) -> Result {
+        pub fn execute(origin, transaction: Transaction) -> Result {
             ensure_inherent(origin)?;
 
             // Verify the transaction
@@ -97,6 +97,9 @@ decl_module! {
             // Update unspent outputs
             Self::_update_storage(&transaction, dust)?;
             
+            // Emit event
+            Self::deposit_event(Event::TransactionExecuted(transaction));
+
             Ok(())
         }
 
