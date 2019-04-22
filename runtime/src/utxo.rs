@@ -329,8 +329,7 @@ impl<T: Trait> Module<T> {
 
     /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
     /// Does not perform enough checks. Must only be used for testing purposes.
-    #[cfg(test)]
-    fn mint(value: Value, pubkey: H256) -> Result {
+    pub fn mint(value: Value, pubkey: H256) -> Result {
         let salt:u64 = <system::Module<T>>::block_number().as_();
         let utxo = TransactionOutput { value, pubkey, salt };
         let hash = BlakeTwo256::hash_of(&utxo);
