@@ -280,7 +280,6 @@ impl_runtime_apis! {
         }
     }
 
-    // TODO: https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html
     impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             use support::IsSubType;
