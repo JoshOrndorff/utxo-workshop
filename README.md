@@ -2,6 +2,7 @@
 
 A UTXO chain implementation on Substrate
 
+<<<<<<< HEAD
 **Reference**: This repo is an updated reimplementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
 
 
@@ -10,6 +11,16 @@ A UTXO chain implementation on Substrate
 Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
 
 > Note: `Master` branch contains all the answers. Where's the fun in that?
+=======
+**Reference**: This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
+
+
+## Workshop
+
+**Getting started**: Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
+
+> Note: This `Master` branch contains all the answers. Try not to peek!
+>>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 
 **Estimated time**: 2 hours
 
@@ -18,13 +29,16 @@ Checkout the `workshop` branch to get started on this workshop. The following st
 - How to secure UTXO transactions against attacks
 - How to customize transaction pool logic on Substrate
 - Good coding patterns for working with Substrate & Rust
+<<<<<<< HEAD
 
 ## Getting started
+=======
+>>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 
 ## Installation
 
 ### To install Rust
-```
+```zsh
 curl https://sh.rustup.rs -sSf | sh
 
 # On Windows, download and run rustup-init.exe
@@ -36,9 +50,17 @@ rustup update stable
 cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
 ### Clone the boilerplate
+<<<<<<< HEAD
 ```
+=======
+```zsh
+>>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 git clone https://github.com/nczhu/utxo-workshop.git
 git checkout -b workshop
+
+# Double check that it builds correctly
+./build.sh
+cargo build --release
 ```
 
 ## Exercise 1: Security
@@ -61,7 +83,11 @@ Your challenge is to extend the implementation such that only secure transaction
 1. Run cargo test: `cargo test -p utxo-runtime`
 
 2. Notice that 7/8 tests are failing!
+<<<<<<< HEAD
 ```
+=======
+```zsh
+>>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 failures:
     utxo::tests::attack_by_double_counting_input
     utxo::tests::attack_by_double_generating_output
@@ -73,10 +99,15 @@ failures:
 ```
 
 3. In `utxo.rs`, extend `verify_transaction()` to make the following tests pass. 
+<<<<<<< HEAD
+
+*Hint: You may want to make them pass in this order!*
+=======
+>>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 
 *Hint: You may want to make them pass in this order!*
 
-```
+```zsh
 [0] test utxo::tests::attack_with_empty_transactions ... ok
 [1] test utxo::tests::attack_by_double_counting_input ... ok
 [2] test utxo::tests::attack_by_double_generating_output ... ok
@@ -123,10 +154,31 @@ You can try building the following extensions:
 - [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
 - [Polkadot UI](https://polkadot.js.org/)
 
+<<<<<<< HEAD
 #### Launching the UI
+=======
+### Using a UI boilerplate
+Get the UI boilerplate [here](https://github.com/paritytech/substrate-ui)
+
+```zsh
+# In the Runtime repo
+./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
+./target/release/utxo-runtime —-dev
+
+# In the UI repo
+yarn install
+yarn run dev
+>>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 ```
-./build.sh              // build wasm
-cargo build —release    // build binary
-./target/release/utxo-runtime purge-chain -—dev // or
+
+Visit `localhost:8000`
+
+### Using the Polkadot UI
+
+Visit [Polkadot JS](https://substrate-ui.parity.io/#/settings)
+
+```zsh
+# In the Runtime repo
+./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
 ./target/release/utxo-runtime —-dev
 ```
