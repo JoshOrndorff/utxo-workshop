@@ -125,10 +125,27 @@ You can try building the following extensions:
 - [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
 - [Polkadot UI](https://polkadot.js.org/)
 
-#### Launching the UI
+### Using a UI boilerplate
+Get the UI boilerplate [here](https://github.com/paritytech/substrate-ui)
+
 ```zsh
-./build.sh              // build wasm
-cargo build —release    // build binary
-./target/release/utxo-runtime purge-chain -—dev // or
+# In the Runtime repo
+./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
+./target/release/utxo-runtime —-dev
+
+# In the UI repo
+yarn install
+yarn run dev
+```
+
+Visit `localhost:8000`
+
+### Using the Polkadot UI
+
+Visit [Polkadot JS](https://substrate-ui.parity.io/#/settings)
+
+```zsh
+# In the Runtime repo
+./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
 ./target/release/utxo-runtime —-dev
 ```
