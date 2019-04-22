@@ -125,6 +125,22 @@ decl_module! {
             Ok(())
         }
 
+        /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
+        /// Does not perform enough checks. Must only be used for testing purposes.
+        pub fn mint(origin, value: Value, pubkey: H256) -> Result {
+            let salt:u64 = <system::Module<T>>::block_number().as_();
+            let utxo = TransactionOutput { value, pubkey, salt };
+            let hash = BlakeTwo256::hash_of(&utxo);
+
+            if !<UnspentOutputs<T>>::exists(hash) {
+                <UnspentOutputs<T>>::insert(hash, utxo);
+            } else {
+                runtime_io::print("cannot mint due to hash collision");
+            }
+
+            Ok(())
+        }
+
         /// Handler called by the system on block finalization
         fn on_finalize() {
             let auth:Vec<_> = Consensus::authorities().iter().map(|x| x.0.into() ).collect();
@@ -324,22 +340,6 @@ impl<T: Trait> Module<T> {
     pub fn unlock_utxo(hash: &H256) -> Result {
         ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
         <LockedOutputs<T>>::remove(hash);
-        Ok(())
-    }
-
-    /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
-    /// Does not perform enough checks. Must only be used for testing purposes.
-    pub fn mint(value: Value, pubkey: H256) -> Result {
-        let salt:u64 = <system::Module<T>>::block_number().as_();
-        let utxo = TransactionOutput { value, pubkey, salt };
-        let hash = BlakeTwo256::hash_of(&utxo);
-
-        if !<UnspentOutputs<T>>::exists(hash) {
-            <UnspentOutputs<T>>::insert(hash, utxo);
-        } else {
-            runtime_io::print("cannot mint due to hash collision");
-        }
-
         Ok(())
     }
 }

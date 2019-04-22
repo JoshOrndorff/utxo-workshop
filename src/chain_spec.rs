@@ -5,6 +5,9 @@ use utxo_runtime::{
     TimestampConfig, UtxoConfig,
 };
 
+use utxo_runtime::utxo;
+use primitives::H256;
+
 use ed25519::Public as AuthorityId;
 
 // Note this is the URL for the telemetry server
@@ -121,7 +124,13 @@ fn testnet_genesis(
 			key: root_key,
 		}),
         utxo: Some(UtxoConfig {
-            initial_utxo: Vec::new(),
+            initial_utxo: vec![
+				utxo::TransactionOutput {
+					value: utxo::Value::max_value(),
+					pubkey: H256::zero(),
+					salt: 0,
+				}
+			],
             ..Default::default()
         }),
 	}
