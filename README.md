@@ -142,10 +142,34 @@ Visit `localhost:8000`
 
 ### Using the Polkadot UI
 
-Visit [Polkadot JS](https://substrate-ui.parity.io/#/settings)
-
 ```zsh
 # In the Runtime repo
 ./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
 ./target/release/utxo-runtime —-dev
 ```
+
+1. Visit [Polkadot JS](https://substrate-ui.parity.io/#/settings)
+
+2. Load your type definitions in Settings > Developer
+```json
+{
+  "Signature": "H512",
+  "Value": "u128",
+  "LockStatus": "u8",
+  "TransactionInput": {
+    "parent_output": "H256",
+    "signature": "Signature"
+  },
+  "TransactionOutput": {
+    "value": "Value",
+    "pubkey": "H256",
+    "salt": "u64"
+  },
+  "Transaction": {
+    "inputs": "Vec<TransactionInput>",
+    "outputs": "Vec<TransactionOutput>"
+  }
+}
+```
+
+2. Mint some tokens to work with

@@ -210,7 +210,7 @@ construct_runtime!(
 		Indices: indices,
 		Balances: balances,
 		Sudo: sudo,
-		Utxo: utxo::{Module, Call, Storage, Event},
+		Utxo: utxo::{Module, Call, Storage, Event, Config<T>},
 	}
 );
 
