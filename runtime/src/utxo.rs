@@ -1,3 +1,5 @@
+// Original Author: @0x7CFE
+
 use support::{
     decl_event, decl_module, decl_storage,
     dispatch::{Result, Vec},
@@ -19,35 +21,53 @@ pub trait Trait: system::Trait {
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
 }
 
+/// Representation of UTXO value
+pub type Value = u128;
+
+/// Representation of UTXO value
+type Signature = H512;
+
+/// Single transaction to be dispatched
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct Transaction {
+    /// UTXOs to be used as inputs for current transaction
     pub inputs: Vec<TransactionInput>,
+    
+    /// UTXOs to be created as a result of current transaction dispatch
     pub outputs: Vec<TransactionOutput>,
 }
 
-type Signature = H512;
-
+/// Single transaction input that refers to one UTXO
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct TransactionInput {
-    // Reference to the input value
+    /// Reference to an UTXO to be spent
     pub parent_output: H256,
-    // Proof that owner is authorized to spend referred UTXO
+    
+    /// Proof that transaction owner is authorized to spend referred UTXO
     pub signature: Signature,
 }
 
-pub type Value = u128; // Alias u128 to Value
-
+/// Single transaction output to create upon transaction dispatch
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
 pub struct TransactionOutput {
+    /// Value associated with this output
     pub value: Value,
-    pub pubkey: H256, // pub key of the output, owner has to have private key
-    pub salt: u64,    // distinguishes outputs of same value/pubkey apart
+
+    /// Public key associated with this output. In order to spend this output
+	/// owner must provide a proof by hashing whole `TransactionOutput` and
+	/// signing it with a corresponding private key.
+    pub pubkey: H256,
+
+    /// Unique (potentially random) value used to distinguish this
+	/// particular output from others addressed to the same public
+	/// key with the same value. Prevents potential replay attacks.
+    pub salt: u64,
 }
 
-// A UTXO can be locked (indefinitely) or until a certain block height
+/// A UTXO can be locked indefinitely or until a certain block height
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, Hash)]
 pub enum LockStatus<BlockNumber> {
@@ -57,7 +77,8 @@ pub enum LockStatus<BlockNumber> {
 
 decl_storage! {
     trait Store for Module<T: Trait> as Utxo {
-
+        /// All valid unspent transaction outputs are stored in this map.
+		/// Initial set of UTXO is populated from the list stored in genesis.
         UnspentOutputs build(|config: &GenesisConfig<T>| {
             config.initial_utxo
                 .iter()
@@ -66,9 +87,13 @@ decl_storage! {
                 .collect::<Vec<_>>()
         }): map H256 => Option<TransactionOutput>;
 
+
+        /// Total leftover value to be redistributed among authorities.
+		/// It is accumulated during block execution and then drained
+		/// on block finalization.
         pub DustTotal get(leftover_total): Value;
 
-        // A map of outputs that are locked
+        /// All UTXO that are locked
         LockedOutputs: map H256 => Option<LockStatus<T::BlockNumber>>;
     }
 
@@ -81,6 +106,7 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
+        /// Dispatch a single transaction and update UTXO set accordingly
         pub fn execute(origin, transaction: Transaction) -> Result {
             ensure_inherent(origin)?;
 
@@ -91,7 +117,7 @@ decl_module! {
             };
 
             // Update unspent outputs
-            Self::_update_storage(&transaction, dust)?;
+            Self::update_storage(&transaction, dust)?;
 
             // Emit event
             Self::deposit_event(Event::TransactionExecuted(transaction));
@@ -99,123 +125,45 @@ decl_module! {
             Ok(())
         }
 
-        // custom function for minting tokens
-        // Be very careful with this!!
-        fn mint(origin, value: Value, pubkey: H256) -> Result {
-            ensure_inherent(origin)?;
-            let salt:u64 = <system::Module<T>>::block_number().as_();
-            let utxo = TransactionOutput { value, pubkey, salt };
-            let hash = BlakeTwo256::hash_of(&utxo);
-
-            if !<UnspentOutputs<T>>::exists(hash) {
-                <UnspentOutputs<T>>::insert(hash, utxo);
-            } else {
-                runtime_io::print("cannot mint due to hash collision");
-            }
-
-            Ok(())
-        }
-
+        /// Handler called by the system on block finalization
         fn on_finalize() {
             let auth:Vec<_> = Consensus::authorities().iter().map(|x| x.0.into() ).collect();
-            Self::_spend_dust(&auth);
+            Self::spend_dust(&auth);
         }
     }
 }
 
 decl_event!(
     pub enum Event {
+        /// Transaction was executed successfully
         TransactionExecuted(Transaction),
     }
 );
 
+/// Information collected during transaction verification
 pub enum CheckInfo<'a> {
+    /// Combined value of all inputs and outputs
     Totals { input: Value, output: Value },
+
+    /// Some referred UTXOs were missing
     MissingInputs(Vec<&'a H256>),
 }
 
+/// Result of transaction verification
 pub type CheckResult<'a> = rstd::result::Result<CheckInfo<'a>, &'static str>;
 
 impl<T: Trait> Module<T> {
-    pub fn _lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> Result {
-        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
-        ensure!(<UnspentOutputs<T>>::exists(hash), "utxo does not exist");
-
-        if let Some(until) = until {
-            ensure!(
-                until > <system::Module<T>>::block_number(),
-                "block number is in the past"
-            );
-            <LockedOutputs<T>>::insert(hash, LockStatus::LockedUntil(until));
-        } else {
-            <LockedOutputs<T>>::insert(hash, LockStatus::Locked);
-        }
-
-        Ok(())
-    }
-
-    pub fn _unlock_utxo(hash: &H256) -> Result {
-        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
-        <LockedOutputs<T>>::remove(hash);
-        Ok(())
-    }
-
-    fn _spend_dust(authorities: &[H256]) {
-        let dust = <DustTotal<T>>::take();
-        let dust_per_authority: Value = dust
-            .checked_div(authorities.len() as Value)
-            .ok_or("No authorities")
-            .unwrap();
-        if dust_per_authority == 0 {
-            return;
-        };
-
-        let dust_remainder = dust
-            .checked_sub(dust_per_authority * authorities.len() as Value)
-            .ok_or("Sub underflow")
-            .unwrap();
-        <DustTotal<T>>::put(dust_remainder as Value);
-
-        for authority in authorities {
-            let utxo = TransactionOutput {
-                value: dust_per_authority,
-                pubkey: *authority,
-                salt: <system::Module<T>>::block_number().as_(),
-            };
-
-            let hash = BlakeTwo256::hash_of(&utxo);
-
-            if !<UnspentOutputs<T>>::exists(hash) {
-                <UnspentOutputs<T>>::insert(hash, utxo);
-                runtime_io::print("leftover share sent to");
-                runtime_io::print(hash.as_fixed_bytes() as &[u8]);
-            } else {
-                runtime_io::print("leftover share wasted due to hash collision");
-            }
-        }
-    }
-
-    fn _update_storage(transaction: &Transaction, dust: Value) -> Result {
-        // update dust
-        let dust_total = <DustTotal<T>>::get()
-            .checked_add(dust)
-            .ok_or("Dust overflow")?;
-        <DustTotal<T>>::put(dust_total);
-
-        // update unspent outputs
-        for input in &transaction.inputs {
-            <UnspentOutputs<T>>::remove(input.parent_output);
-        }
-
-        for output in &transaction.outputs {
-            let hash = BlakeTwo256::hash_of(output);
-            <UnspentOutputs<T>>::insert(hash, output);
-        }
-
-        Ok(())
-    }
-
-    /// Verifies the transaction validity, returns the outcome
+    /// Check transaction for validity.
+    /// 
+    /// Ensures that:
+	/// - inputs and outputs are not empty
+	/// - all inputs match to existing, unspent and unlocked outputs
+	/// - each input is used exactly once
+	/// - each output is defined exactly once and has nonzero value
+	/// - total output value must not exceed total input value
+	/// - new outputs do not collide with existing ones
+	/// - sum of input and output values does not overflow
+	/// - provided signatures are valid
     pub fn verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
         ensure!(!transaction.inputs.is_empty(), "no inputs");
         ensure!(!transaction.outputs.is_empty(), "no outputs");
@@ -246,13 +194,14 @@ impl<T: Trait> Module<T> {
         let mut total_input: Value = 0;
         let mut missing_utxo = Vec::new();
         for input in transaction.inputs.iter() {
+            // Fetch UTXO from the storage
             if let Some(output) = <UnspentOutputs<T>>::get(&input.parent_output) {
                 ensure!(
                     !<LockedOutputs<T>>::exists(&input.parent_output),
                     "utxo is locked"
                 );
 
-                // Check uxto authorization
+                // Check uxto signature authorization
                 ensure!(
                     ed25519_verify(
                         input.signature.as_fixed_bytes(),
@@ -295,6 +244,104 @@ impl<T: Trait> Module<T> {
         } else {
             Ok(CheckInfo::MissingInputs(missing_utxo))
         }
+    }
+	
+    /// Redistribute combined leftover value evenly among chain authorities
+    fn spend_dust(authorities: &[H256]) {
+        let dust = <DustTotal<T>>::take();
+        let dust_per_authority: Value = dust
+            .checked_div(authorities.len() as Value)
+            .ok_or("No authorities")
+            .unwrap();
+        if dust_per_authority == 0 {
+            return;
+        };
+
+        let dust_remainder = dust
+            .checked_sub(dust_per_authority * authorities.len() as Value)
+            .ok_or("Sub underflow")
+            .unwrap();
+        <DustTotal<T>>::put(dust_remainder as Value);
+
+        for authority in authorities {
+            let utxo = TransactionOutput {
+                value: dust_per_authority,
+                pubkey: *authority,
+                salt: <system::Module<T>>::block_number().as_(),
+            };
+
+            let hash = BlakeTwo256::hash_of(&utxo);
+
+            if !<UnspentOutputs<T>>::exists(hash) {
+                <UnspentOutputs<T>>::insert(hash, utxo);
+                runtime_io::print("leftover share sent to");
+                runtime_io::print(hash.as_fixed_bytes() as &[u8]);
+            } else {
+                runtime_io::print("leftover share wasted due to hash collision");
+            }
+        }
+    }
+
+    /// Update storage to reflect changes made by transaction
+    fn update_storage(transaction: &Transaction, dust: Value) -> Result {
+        // Calculate new dust total
+        let dust_total = <DustTotal<T>>::get()
+            .checked_add(dust)
+            .ok_or("Dust overflow")?;
+        <DustTotal<T>>::put(dust_total);
+
+        // Storing updated dust value
+        for input in &transaction.inputs {
+            <UnspentOutputs<T>>::remove(input.parent_output);
+        }
+
+        // Add new UTXO to be used by future transactions
+        for output in &transaction.outputs {
+            let hash = BlakeTwo256::hash_of(output);
+            <UnspentOutputs<T>>::insert(hash, output);
+        }
+
+        Ok(())
+    }
+
+    pub fn lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> Result {
+        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
+        ensure!(<UnspentOutputs<T>>::exists(hash), "utxo does not exist");
+
+        if let Some(until) = until {
+            ensure!(
+                until > <system::Module<T>>::block_number(),
+                "block number is in the past"
+            );
+            <LockedOutputs<T>>::insert(hash, LockStatus::LockedUntil(until));
+        } else {
+            <LockedOutputs<T>>::insert(hash, LockStatus::Locked);
+        }
+
+        Ok(())
+    }
+
+    pub fn unlock_utxo(hash: &H256) -> Result {
+        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
+        <LockedOutputs<T>>::remove(hash);
+        Ok(())
+    }
+
+    /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
+    /// Does not perform enough checks. Must only be used for testing purposes.
+    #[cfg(test)]
+    fn mint(value: Value, pubkey: H256) -> Result {
+        let salt:u64 = <system::Module<T>>::block_number().as_();
+        let utxo = TransactionOutput { value, pubkey, salt };
+        let hash = BlakeTwo256::hash_of(&utxo);
+
+        if !<UnspentOutputs<T>>::exists(hash) {
+            <UnspentOutputs<T>>::insert(hash, utxo);
+        } else {
+            runtime_io::print("cannot mint due to hash collision");
+        }
+
+        Ok(())
     }
 }
 
