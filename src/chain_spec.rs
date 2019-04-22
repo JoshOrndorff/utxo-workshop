@@ -2,7 +2,7 @@ use primitives::{ed25519, sr25519, Pair};
 use substrate_service;
 use utxo_runtime::{
     AccountId, BalancesConfig, ConsensusConfig, GenesisConfig, IndicesConfig, SudoConfig,
-    TimestampConfig,
+    TimestampConfig, UtxoConfig,
 };
 
 use ed25519::Public as AuthorityId;
@@ -120,5 +120,9 @@ fn testnet_genesis(
 		sudo: Some(SudoConfig {
 			key: root_key,
 		}),
+        utxo: Some(UtxoConfig {
+            initial_utxo: Vec::new(),
+            ..Default::default()
+        }),
 	}
 }
