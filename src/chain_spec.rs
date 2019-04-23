@@ -94,6 +94,8 @@ impl Alternative {
     }
 }
 
+const ALICE1: [u8; 32] = [211, 72, 19, 74, 67, 153, 124, 122, 154, 122, 168, 144, 51, 201, 58, 73, 114, 162, 138, 80, 234, 197, 9, 130, 228, 39, 2, 127, 141, 53, 252, 237];
+
 fn testnet_genesis(
     initial_authorities: Vec<AuthorityId>,
     endowed_accounts: Vec<AccountId>,
@@ -127,7 +129,7 @@ fn testnet_genesis(
             initial_utxo: vec![
 				utxo::TransactionOutput {
 					value: utxo::Value::max_value(),
-					pubkey: H256::zero(),
+					pubkey: H256::from_slice(&ALICE1),
 					salt: 0,
 				}
 			],
