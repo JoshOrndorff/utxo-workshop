@@ -298,7 +298,7 @@ impl_runtime_apis! {
 
                 const INVALID_UTXO: i8 = -99;
 
-                match <utxo::Module<Runtime>>::verify_transaction(&transaction) {
+                match <utxo::Module<Runtime>>::check_transaction(&transaction) {
                     // Transaction verification failed
                     Err(e) => {
                         runtime_io::print(e);

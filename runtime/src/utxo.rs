@@ -108,7 +108,7 @@ decl_module! {
             ensure_inherent(origin)?;
 
             // Verify the transaction
-            let leftover = match Self::verify_transaction(&transaction)? {
+            let leftover = match Self::check_transaction(&transaction)? {
                 CheckInfo::Totals{input, output} => input - output,
                 CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
             };
@@ -177,7 +177,7 @@ impl<T: Trait> Module<T> {
 	/// - new outputs do not collide with existing ones
 	/// - sum of input and output values does not overflow
 	/// - provided signatures are valid
-    pub fn verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
+    pub fn check_transaction(transaction: &Transaction) -> CheckResult<'_> {
         ensure!(!transaction.inputs.is_empty(), "no inputs");
         ensure!(!transaction.outputs.is_empty(), "no outputs");
 
@@ -444,7 +444,7 @@ mod tests {
     // ================================================
     //
     // The following tests simulate malicious UTXO transactions
-    // Implement the verify_transaction() function to thwart such attacks
+    // Implement the check_transaction() function to thwart such attacks
     //
     // Hint: Examine types CheckResult, CheckInfo for the expected behaviors of this function
     // Hint: Make this function public, as it will be later used outside of this module
