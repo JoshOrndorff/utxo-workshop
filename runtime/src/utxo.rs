@@ -1,16 +1,13 @@
 // Original Author: @0x7CFE
-
 use support::{
     decl_event, decl_module, decl_storage,
     dispatch::{Result, Vec},
     ensure, StorageMap, StorageValue,
 };
-
 use primitives::{H256, H512};
 use rstd::collections::btree_map::BTreeMap;
 use runtime_primitives::traits::{As, BlakeTwo256, Hash};
 use system::ensure_inherent;
-
 use super::Consensus;
 use parity_codec::{Decode, Encode};
 use runtime_io::ed25519_verify;
@@ -91,7 +88,7 @@ decl_storage! {
         /// Total leftover value to be redistributed among authorities.
 		/// It is accumulated during block execution and then drained
 		/// on block finalization.
-        pub DustTotal get(leftover_total): Value;
+        pub LeftoverTotal get(leftover_total): Value;
 
         /// All UTXO that are locked
         LockedOutputs: map H256 => Option<LockStatus<T::BlockNumber>>;
@@ -111,13 +108,13 @@ decl_module! {
             ensure_inherent(origin)?;
 
             // Verify the transaction
-            let dust = match Self::verify_transaction(&transaction)? {
+            let leftover = match Self::verify_transaction(&transaction)? {
                 CheckInfo::Totals{input, output} => input - output,
                 CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
             };
 
             // Update unspent outputs
-            Self::update_storage(&transaction, dust)?;
+            Self::update_storage(&transaction, leftover)?;
 
             // Emit event
             Self::deposit_event(Event::TransactionExecuted(transaction));
@@ -144,7 +141,7 @@ decl_module! {
         /// Handler called by the system on block finalization
         fn on_finalize() {
             let auth:Vec<_> = Consensus::authorities().iter().map(|x| x.0.into() ).collect();
-            Self::spend_dust(&auth);
+            Self::spend_leftover(&auth);
         }
     }
 }
@@ -228,9 +225,7 @@ impl<T: Trait> Module<T> {
                 );
 
                 // Add the value to the input total
-                total_input = total_input
-                    .checked_add(output.value)
-                    .ok_or("input value overflow")?;
+                total_input = total_input.checked_add(output.value).ok_or("input value overflow")?;
             } else {
                 missing_utxo.push(&input.parent_output);
             }
@@ -263,25 +258,23 @@ impl<T: Trait> Module<T> {
     }
 	
     /// Redistribute combined leftover value evenly among chain authorities
-    fn spend_dust(authorities: &[H256]) {
-        let dust = <DustTotal<T>>::take();
-        let dust_per_authority: Value = dust
+    fn spend_leftover(authorities: &[H256]) {
+        let leftover = <LeftoverTotal<T>>::take();
+        let share_value: Value = leftover
             .checked_div(authorities.len() as Value)
             .ok_or("No authorities")
             .unwrap();
-        if dust_per_authority == 0 {
-            return;
-        };
+        if share_value == 0 { return }
 
-        let dust_remainder = dust
-            .checked_sub(dust_per_authority * authorities.len() as Value)
+        let remainder = leftover
+            .checked_sub(share_value * authorities.len() as Value)
             .ok_or("Sub underflow")
             .unwrap();
-        <DustTotal<T>>::put(dust_remainder as Value);
+        <LeftoverTotal<T>>::put(remainder as Value);
 
         for authority in authorities {
             let utxo = TransactionOutput {
-                value: dust_per_authority,
+                value: share_value,
                 pubkey: *authority,
                 salt: <system::Module<T>>::block_number().as_(),
             };
@@ -299,14 +292,14 @@ impl<T: Trait> Module<T> {
     }
 
     /// Update storage to reflect changes made by transaction
-    fn update_storage(transaction: &Transaction, dust: Value) -> Result {
-        // Calculate new dust total
-        let dust_total = <DustTotal<T>>::get()
-            .checked_add(dust)
-            .ok_or("Dust overflow")?;
-        <DustTotal<T>>::put(dust_total);
+    fn update_storage(transaction: &Transaction, leftover: Value) -> Result {
+        // Calculate new leftover total
+        let new_total = <LeftoverTotal<T>>::get()
+            .checked_add(leftover)
+            .ok_or("Leftover overflow")?;
+        <LeftoverTotal<T>>::put(new_total);
 
-        // Storing updated dust value
+        // Storing updated leftover value
         for input in &transaction.inputs {
             <UnspentOutputs<T>>::remove(input.parent_output);
         }
