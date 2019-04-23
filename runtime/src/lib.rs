@@ -41,6 +41,7 @@ pub use timestamp::Call as TimestampCall;
 pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
 
 /// The type used by authorities to prove their ID.
+/// TODO change this to sr25519 so authorites can redeem utxo
 pub type AuthoritySignature = ed25519::Signature;
 
 /// Alias to pubkey that identifies an account on the chain.
