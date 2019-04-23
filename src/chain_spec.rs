@@ -94,7 +94,7 @@ impl Alternative {
     }
 }
 
-const ALICE1: [u8; 32] = [211, 72, 19, 74, 67, 153, 124, 122, 154, 122, 168, 144, 51, 201, 58, 73, 114, 162, 138, 80, 234, 197, 9, 130, 228, 39, 2, 127, 141, 53, 252, 237];
+const NICOLE: [u8; 32] = [116, 226, 14, 160, 212, 45, 69, 16, 89, 106, 82, 147, 176, 7, 230, 117, 73, 194, 195, 25, 243, 187, 154, 238, 234, 178, 183, 170, 1, 160, 88, 119];
 
 fn testnet_genesis(
     initial_authorities: Vec<AuthorityId>,
@@ -129,7 +129,7 @@ fn testnet_genesis(
             initial_utxo: vec![
 				utxo::TransactionOutput {
 					value: utxo::Value::max_value(),
-					pubkey: H256::from_slice(&ALICE1),
+					pubkey: H256::from_slice(&NICOLE),
 					salt: 0,
 				}
 			],

@@ -7,10 +7,10 @@ use support::{
 use primitives::{H256, H512};
 use rstd::collections::btree_map::BTreeMap;
 use runtime_primitives::traits::{As, BlakeTwo256, Hash};
-use system::ensure_inherent;
+use system::{ensure_inherent, ensure_signed};
 use super::Consensus;
 use parity_codec::{Decode, Encode};
-use runtime_io::ed25519_verify;
+use runtime_io::sr25519_verify;
 #[cfg(feature = "std")]
 use serde_derive::{Deserialize, Serialize};
 
@@ -125,6 +125,7 @@ decl_module! {
         /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
         /// Does not perform enough checks. Must only be used for testing purposes.
         pub fn mint(origin, value: Value, pubkey: H256) -> Result {
+            ensure_signed(origin)?;
             let salt:u64 = <system::Module<T>>::block_number().as_();
             let utxo = TransactionOutput { value, pubkey, salt };
             let hash = BlakeTwo256::hash_of(&utxo);
@@ -216,7 +217,7 @@ impl<T: Trait> Module<T> {
 
                 // Check uxto signature authorization
                 ensure!(
-                    ed25519_verify(
+                    sr25519_verify(
                         input.signature.as_fixed_bytes(),
                         input.parent_output.as_fixed_bytes(),
                         &output.pubkey
@@ -377,27 +378,14 @@ mod tests {
     type Utxo = Module<Test>;
 
     // Test set up
-    // Alice's Public Key: from_legacy_string("Alice", Some("recover"));
-    const ALICE_KEY: [u8; 32] = [
-        209, 114, 167, 76, 218, 76, 134, 89, 18, 195, 43, 160, 168, 10, 87, 174, 105, 171, 174, 65,
-        14, 92, 203, 89, 222, 232, 78, 47, 68, 50, 219, 79,
-    ];
+    // Alice's Public Key: Pair::from_seed(*b"12345678901234567890123456789012");
+    const ALICE_KEY: [u8; 32] = [116, 28, 8, 160, 111, 65, 197, 150, 96, 143, 103, 116, 37, 155, 217, 4, 51, 4, 173, 250, 93, 62, 234, 98, 118, 11, 217, 190, 151, 99, 77, 99];
 
     // Alice's Signature to spend alice_utxo(): signs a token she owns Pair::sign(&message[..])
-    const ALICE_SIG: [u8; 64] = [
-        203, 25, 139, 36, 34, 10, 235, 226, 189, 110, 216, 143, 155, 17, 148, 6, 191, 239, 29, 227,
-        118, 59, 125, 216, 222, 242, 222, 49, 68, 49, 41, 242, 128, 133, 202, 59, 127, 159, 239,
-        139, 18, 88, 255, 236, 155, 254, 40, 185, 42, 96, 60, 156, 203, 11, 101, 239, 228, 218, 62,
-        202, 205, 17, 41, 7,
-    ];
+    const ALICE_SIG: [u8; 64] = [148, 250, 180, 5, 112, 29, 240, 241, 122, 26, 249, 125, 87, 102, 180, 179, 127, 79, 120, 72, 253, 21, 26, 215, 157, 35, 208, 126, 54, 181, 150, 12, 117, 177, 134, 104, 124, 16, 70, 249, 31, 4, 131, 192, 247, 143, 73, 123, 24, 66, 144, 189, 64, 90, 65, 79, 185, 36, 107, 135, 195, 212, 219, 10];
 
     // Alice's Signature to spend alice_utxo_100(): signs a token she owns Pair::sign(&message[..])
-    const ALICE_SIG100: [u8; 64] = [
-        37, 190, 14, 182, 163, 218, 61, 32, 245, 202, 94, 196, 186, 129, 171, 128, 91, 163, 51, 30,
-        146, 219, 237, 78, 145, 75, 195, 175, 212, 99, 230, 232, 234, 49, 208, 115, 146, 75, 228,
-        253, 244, 238, 116, 198, 138, 15, 111, 214, 243, 157, 62, 146, 122, 211, 217, 74, 27, 193,
-        223, 79, 114, 173, 233, 1,
-    ];
+    const ALICE_SIG100: [u8; 64] = [228, 33, 239, 151, 136, 93, 241, 82, 205, 248, 154, 139, 52, 157, 231, 222, 66, 242, 86, 120, 92, 170, 98, 214, 78, 226, 93, 229, 130, 174, 168, 26, 7, 151, 88, 13, 185, 161, 15, 247, 222, 85, 235, 107, 246, 135, 23, 47, 162, 71, 81, 29, 227, 230, 210, 112, 0, 157, 86, 218, 130, 11, 8, 0];
 
     // Creates a max value UTXO for Alice
     fn alice_utxo() -> (H256, TransactionOutput) {
@@ -616,6 +604,7 @@ mod tests {
         with_externalities(&mut new_test_ext(), || {
             let (parent_hash, _) = alice_utxo_100();
 
+            println!("---PARENT HASH 100 ---{:x?}", parent_hash);
             let transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: parent_hash,
@@ -641,7 +630,7 @@ mod tests {
             );
         });
     }
-
+    
     #[test]
     fn valid_transaction() {
         with_externalities(&mut new_test_ext(), || {
