@@ -1,27 +1,28 @@
 # UTXO on Substrate
 
-A UTXO chain implementation on Substrate
+A UTXO chain implementation on Substrate. This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
 
-**Reference**: This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
+For a live demo, check out how to set up this repo with [Polkadot UI here](#Using-the-Polkadot-UI).
 
+## Project Structure
+- `master` branch contains the full solution (cheats).
+- `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walks you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
 
 ## Workshop
 
-**Getting started**: Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
-
-> Note: This `Master` branch contains all the answers. Try not to peek!
-
 **Estimated time**: 2 hours
 
-### You will learn
+Over this course of this workshop, you will learn:
 - How to implement the UTXO model on Substrate
 - How to secure UTXO transactions against attacks
+- How to seed genesis block with UTXOs
+- How to reward block validators in this environment
 - How to customize transaction pool logic on Substrate
 - Good coding patterns for working with Substrate & Rust
 
-## Installation
+> Note: This `Master` branch contains all the answers. Try not to peek!
 
-### To install Rust
+### 1. Install | Upgrade Rust
 ```zsh
 curl https://sh.rustup.rs -sSf | sh
 
@@ -33,7 +34,7 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup update stable
 cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
-### Clone the boilerplate
+### Clone the workshop boilerplate
 ```zsh
 git clone https://github.com/nczhu/utxo-workshop.git
 git checkout -b workshop
@@ -43,13 +44,12 @@ git checkout -b workshop
 cargo build --release
 ```
 
-## Exercise 1: Security
+## Challenge 1: UTXO Transaction Security
 UTXO validates transactions as follows: 
 - Check signatures
 - Check all inputs are unspent 
 - Check input == output value
 - Set Input to “spent”
-- Save the new unspent outputs
 
 Similarly in our UTXO implementation, we need to prevent malicious users from sending bad transactions. `utxo.rs` contains some tests that simulate these malicious attacks. 
 
@@ -74,9 +74,9 @@ failures:
     utxo::tests::attack_with_invalid_signature
 ```
 
-3. In `utxo.rs`, extend `verify_transaction()` to make the following tests pass. 
+3. In `utxo.rs`, extend `check_transaction()` to make the following tests pass. 
 
-*Hint: You may want to make them pass in this order!*
+*Hint: You may want to make them pass in the following order!*
 
 ```zsh
 [0] test utxo::tests::attack_with_empty_transactions ... ok
@@ -120,27 +120,7 @@ You can try building the following extensions:
 - Give transactions in the pool a smarter longevity lifetime
 - Implement coinbase transactions, by letting users add value through work
 
-## Helpful Resources
-- [Substrate documentation](http://crates.parity.io)
-- [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
-- [Polkadot UI](https://polkadot.js.org/)
-
-### Using a UI boilerplate
-Get the UI boilerplate [here](https://github.com/paritytech/substrate-ui)
-
-```zsh
-# In the Runtime repo
-./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
-./target/release/utxo-runtime —-dev
-
-# In the UI repo
-yarn install
-yarn run dev
-```
-
-Visit `localhost:8000`
-
-### Using the Polkadot UI
+## Using the Polkadot UI
 
 ```zsh
 # In the Runtime repo
@@ -173,3 +153,9 @@ Visit `localhost:8000`
 ```
 
 2. Mint some tokens to work with
+
+
+## Helpful Resources
+- [Substrate documentation](http://crates.parity.io)
+- [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
+- [Polkadot UI](https://polkadot.js.org/)
