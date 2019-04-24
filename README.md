@@ -88,7 +88,7 @@ failures:
 [6] test utxo::tests::attack_by_over_spending ... ok
 ```
 
-## Exercise 2: Transaction Ordering
+## Challenge 2: Transaction Ordering
 
 **Scenario**: Imagine a situation where Alice pays Bob via **transaction A**, then Bob uses his new utxo to pay Charlie, via **transaction B**. In short, B depends on the success of A. 
 
@@ -115,12 +115,12 @@ if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Ru
 }
 ```
 
-## Exercise 3: Extensions
+## Challenge 3: Extensions
 You can try building the following extensions:
 - Give transactions in the pool a smarter longevity lifetime
 - Implement coinbase transactions, by letting users add value through work
 
-## Using the Polkadot UI
+## Demo: Using the Polkadot UI
 
 ```zsh
 # In the Runtime repo
@@ -133,16 +133,15 @@ You can try building the following extensions:
 2. Load your type definitions in Settings > Developer
 ```json
 {
-  "Signature": "H512",
   "Value": "u128",
-  "LockStatus": "u8",
+  "LockStatus": "u32",
   "TransactionInput": {
-    "parent_output": "H256",
+    "parent_output": "Hash",
     "signature": "Signature"
   },
   "TransactionOutput": {
     "value": "Value",
-    "pubkey": "H256",
+    "pubkey": "Hash",
     "salt": "u64"
   },
   "Transaction": {
@@ -152,10 +151,10 @@ You can try building the following extensions:
 }
 ```
 
-3. Create an account 'Alice1' from this seed:
+3. Create an account `Alice1` from this seed using `sr25519`:
 `0x9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60`
 
-4. Check that the genesis block contains 1 pregenerated UTXO for Alice as follows:
+4. Check that the genesis block contains 1 pre-configured UTXO for Alice as follows:
 ```rust
 TransactionOutput {
   value: Value::max_value(),
@@ -176,7 +175,7 @@ TransactionOutput {
 }],
 ```
 
-Hint: Encoded Transaction  
+Hint: Encoded Transaction
 `0x04f414d3dfaf46a7f547f8c3572e5831228fe3795a5f26dd10a1f6ae323993b234dc6dda5055768c30c1134dc83ce55b3c463636899a33c9fc62dbac39018b562fa21532b3c487a71dab55036f2e6e0a19ef98b05272c07db6f013c055e3659400046400000000000000000000000000000044a996beb1eef7bdcab976ab6d2ca26104834164ecf28fb375600576fcc6eb0f0200000000000000`
 
 6. Check that the new utxo was generated and the extrinsic succeeded in the block.
