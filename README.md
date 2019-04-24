@@ -2,7 +2,7 @@
 
 A UTXO chain implementation on Substrate. This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
 
-For a live demo, check out how to set up this repo with [Polkadot UI here](#Using-the-Polkadot-UI).
+For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo:-Using-the-Polkadot-UI).
 
 ## Project Structure
 - `master` branch contains the full solution (cheats).
