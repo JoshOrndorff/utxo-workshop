@@ -1,43 +1,28 @@
 # UTXO on Substrate
 
-A UTXO chain implementation on Substrate
+A UTXO chain implementation on Substrate. This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
 
-<<<<<<< HEAD
-**Reference**: This repo is an updated reimplementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
+For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo-Polkadot-UI).
 
-
-## Workshop Format
-
-Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
-
-> Note: `Master` branch contains all the answers. Where's the fun in that?
-=======
-**Reference**: This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
-
+## Project Structure
+- `master` branch contains the full solution (cheats).
+- `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walks you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
 
 ## Workshop
 
-**Getting started**: Checkout the `workshop` branch to get started on this workshop. The following steps will take you through a full implementation of UTXO on Substrate.
-
-> Note: This `Master` branch contains all the answers. Try not to peek!
->>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
-
 **Estimated time**: 2 hours
 
-### You will learn
+Over this course of this workshop, you will learn:
 - How to implement the UTXO model on Substrate
 - How to secure UTXO transactions against attacks
+- How to seed genesis block with UTXOs
+- How to reward block validators in this environment
 - How to customize transaction pool logic on Substrate
 - Good coding patterns for working with Substrate & Rust
-<<<<<<< HEAD
 
-## Getting started
-=======
->>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
+> Note: This `Master` branch contains all the answers. Try not to peek!
 
-## Installation
-
-### To install Rust
+### 1. Install | Upgrade Rust
 ```zsh
 curl https://sh.rustup.rs -sSf | sh
 
@@ -49,12 +34,8 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup update stable
 cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
-### Clone the boilerplate
-<<<<<<< HEAD
-```
-=======
+### Clone the workshop boilerplate
 ```zsh
->>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 git clone https://github.com/nczhu/utxo-workshop.git
 git checkout -b workshop
 
@@ -63,13 +44,12 @@ git checkout -b workshop
 cargo build --release
 ```
 
-## Exercise 1: Security
+## Challenge 1: UTXO Transaction Security
 UTXO validates transactions as follows: 
 - Check signatures
 - Check all inputs are unspent 
 - Check input == output value
 - Set Input to “spent”
-- Save the new unspent outputs
 
 Similarly in our UTXO implementation, we need to prevent malicious users from sending bad transactions. `utxo.rs` contains some tests that simulate these malicious attacks. 
 
@@ -83,11 +63,7 @@ Your challenge is to extend the implementation such that only secure transaction
 1. Run cargo test: `cargo test -p utxo-runtime`
 
 2. Notice that 7/8 tests are failing!
-<<<<<<< HEAD
-```
-=======
 ```zsh
->>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
 failures:
     utxo::tests::attack_by_double_counting_input
     utxo::tests::attack_by_double_generating_output
@@ -98,14 +74,9 @@ failures:
     utxo::tests::attack_with_invalid_signature
 ```
 
-3. In `utxo.rs`, extend `verify_transaction()` to make the following tests pass. 
-<<<<<<< HEAD
+3. In `utxo.rs`, extend `check_transaction()` to make the following tests pass. 
 
-*Hint: You may want to make them pass in this order!*
-=======
->>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
-
-*Hint: You may want to make them pass in this order!*
+*Hint: You may want to make them pass in the following order!*
 
 ```zsh
 [0] test utxo::tests::attack_with_empty_transactions ... ok
@@ -117,7 +88,7 @@ failures:
 [6] test utxo::tests::attack_by_over_spending ... ok
 ```
 
-## Exercise 2: Transaction Ordering
+## Challenge 2: Transaction Ordering
 
 **Scenario**: Imagine a situation where Alice pays Bob via **transaction A**, then Bob uses his new utxo to pay Charlie, via **transaction B**. In short, B depends on the success of A. 
 
@@ -144,36 +115,12 @@ if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Ru
 }
 ```
 
-## Exercise 3: Extensions
+## Challenge 3: Extensions
 You can try building the following extensions:
 - Give transactions in the pool a smarter longevity lifetime
 - Implement coinbase transactions, by letting users add value through work
 
-## Helpful Resources
-- [Substrate documentation](http://crates.parity.io)
-- [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
-- [Polkadot UI](https://polkadot.js.org/)
-
-<<<<<<< HEAD
-#### Launching the UI
-=======
-### Using a UI boilerplate
-Get the UI boilerplate [here](https://github.com/paritytech/substrate-ui)
-
-```zsh
-# In the Runtime repo
-./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
-./target/release/utxo-runtime —-dev
-
-# In the UI repo
-yarn install
-yarn run dev
->>>>>>> 600efd8fb907e315e53c7d6988b5034add12a8b4
-```
-
-Visit `localhost:8000`
-
-### Using the Polkadot UI
+## Demo Polkadot UI
 
 ```zsh
 # In the Runtime repo
@@ -186,16 +133,15 @@ Visit `localhost:8000`
 2. Load your type definitions in Settings > Developer
 ```json
 {
-  "Signature": "H512",
   "Value": "u128",
-  "LockStatus": "u8",
+  "LockStatus": "u32",
   "TransactionInput": {
-    "parent_output": "H256",
+    "parent_output": "Hash",
     "signature": "Signature"
   },
   "TransactionOutput": {
     "value": "Value",
-    "pubkey": "H256",
+    "pubkey": "Hash",
     "salt": "u64"
   },
   "Transaction": {
@@ -205,4 +151,39 @@ Visit `localhost:8000`
 }
 ```
 
-2. Mint some tokens to work with
+3. Create an account `Alice1` from this seed using `sr25519`:
+`0x9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60`
+
+4. Check that the genesis block contains 1 pre-configured UTXO for Alice as follows:
+```rust
+TransactionOutput {
+  value: Value::max_value(),
+  pubkey: H256::from_slice(&ALICE_KEY),
+  salt: 0,
+}
+```
+
+Hint: UTXO Hash
+`0xf414d3dfaf46a7f547f8c3572e5831228fe3795a5f26dd10a1f6ae323993b234`
+
+5. Send a new UTXO transaction from Alice as follows: 
+```rust
+TransactionOutput {
+  value: 100,
+  pubkey: H256::from_slice(&ALICE_KEY),
+  salt: 2,
+}],
+```
+
+Hint: Encoded Transaction
+`0x04f414d3dfaf46a7f547f8c3572e5831228fe3795a5f26dd10a1f6ae323993b234dc6dda5055768c30c1134dc83ce55b3c463636899a33c9fc62dbac39018b562fa21532b3c487a71dab55036f2e6e0a19ef98b05272c07db6f013c055e3659400046400000000000000000000000000000044a996beb1eef7bdcab976ab6d2ca26104834164ecf28fb375600576fcc6eb0f0200000000000000`
+
+6. Check that the new utxo was generated and the extrinsic succeeded in the block.
+
+Hint: new UTXO hash
+`0xd25d4a5cade9f8219cfffffd8474d323a5ba0b2deb5db4a490e1d3b9feb79278`
+
+## Helpful Resources
+- [Substrate documentation](http://crates.parity.io)
+- [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
+- [Polkadot UI](https://polkadot.js.org/)
