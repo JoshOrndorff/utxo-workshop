@@ -2,8 +2,11 @@ use primitives::{ed25519, sr25519, Pair};
 use substrate_service;
 use utxo_runtime::{
     AccountId, BalancesConfig, ConsensusConfig, GenesisConfig, IndicesConfig, SudoConfig,
-    TimestampConfig,
+    TimestampConfig, UtxoConfig,
 };
+
+use primitives::H256;
+use utxo_runtime::utxo;
 
 use ed25519::Public as AuthorityId;
 
@@ -91,6 +94,11 @@ impl Alternative {
     }
 }
 
+const NICOLE: [u8; 32] = [
+    68, 169, 150, 190, 177, 238, 247, 189, 202, 185, 118, 171, 109, 44, 162, 97, 4, 131, 65, 100,
+    236, 242, 143, 179, 117, 96, 5, 118, 252, 198, 235, 15,
+];
+
 fn testnet_genesis(
     initial_authorities: Vec<AuthorityId>,
     endowed_accounts: Vec<AccountId>,
@@ -120,5 +128,15 @@ fn testnet_genesis(
 		sudo: Some(SudoConfig {
 			key: root_key,
 		}),
+        utxo: Some(UtxoConfig {
+            initial_utxo: vec![
+				utxo::TransactionOutput {
+					value: utxo::Value::max_value(),
+					pubkey: H256::from_slice(&NICOLE),
+					salt: 0,
+				}
+			],
+            ..Default::default()
+        }),
 	}
 }

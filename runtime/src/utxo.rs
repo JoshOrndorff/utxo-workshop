@@ -1,19 +1,16 @@
 // Original Author: @0x7CFE
-
 use support::{
     decl_event, decl_module, decl_storage,
     dispatch::{Result, Vec},
     ensure, StorageMap, StorageValue,
 };
-
 use primitives::{H256, H512};
 use rstd::collections::btree_map::BTreeMap;
 use runtime_primitives::traits::{As, BlakeTwo256, Hash};
-use system::ensure_inherent;
-
+use system::{ensure_inherent, ensure_signed};
 use super::Consensus;
 use parity_codec::{Decode, Encode};
-use runtime_io::ed25519_verify;
+use runtime_io::sr25519_verify;
 #[cfg(feature = "std")]
 use serde_derive::{Deserialize, Serialize};
 
@@ -78,7 +75,7 @@ pub enum LockStatus<BlockNumber> {
 decl_storage! {
     trait Store for Module<T: Trait> as Utxo {
         /// All valid unspent transaction outputs are stored in this map.
-		/// Initial set of UTXO is populated from the list stored in genesis.
+        /// Initial set of UTXO is populated from the list stored in genesis.
         UnspentOutputs build(|config: &GenesisConfig<T>| {
             config.initial_utxo
                 .iter()
@@ -89,9 +86,9 @@ decl_storage! {
 
 
         /// Total leftover value to be redistributed among authorities.
-		/// It is accumulated during block execution and then drained
-		/// on block finalization.
-        pub DustTotal get(leftover_total): Value;
+        /// It is accumulated during block execution and then drained
+        /// on block finalization.
+        pub LeftoverTotal get(leftover_total): Value;
 
         /// All UTXO that are locked
         LockedOutputs: map H256 => Option<LockStatus<T::BlockNumber>>;
@@ -111,13 +108,13 @@ decl_module! {
             ensure_inherent(origin)?;
 
             // Verify the transaction
-            let dust = match Self::verify_transaction(&transaction)? {
+            let leftover = match Self::check_transaction(&transaction)? {
                 CheckInfo::Totals{input, output} => input - output,
                 CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
             };
 
             // Update unspent outputs
-            Self::update_storage(&transaction, dust)?;
+            Self::update_storage(&transaction, leftover)?;
 
             // Emit event
             Self::deposit_event(Event::TransactionExecuted(transaction));
@@ -125,10 +122,27 @@ decl_module! {
             Ok(())
         }
 
+        /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
+        /// Does not perform enough checks. Must only be used for testing purposes.
+        pub fn mint(origin, value: Value, pubkey: H256) -> Result {
+            ensure_signed(origin)?;
+            let salt:u64 = <system::Module<T>>::block_number().as_();
+            let utxo = TransactionOutput { value, pubkey, salt };
+            let hash = BlakeTwo256::hash_of(&utxo);
+
+            if !<UnspentOutputs<T>>::exists(hash) {
+                <UnspentOutputs<T>>::insert(hash, utxo);
+            } else {
+                runtime_io::print("cannot mint due to hash collision");
+            }
+
+            Ok(())
+        }
+
         /// Handler called by the system on block finalization
         fn on_finalize() {
             let auth:Vec<_> = Consensus::authorities().iter().map(|x| x.0.into() ).collect();
-            Self::spend_dust(&auth);
+            Self::spend_leftover(&auth);
         }
     }
 }
@@ -163,25 +177,23 @@ impl<T: Trait> Module<T> {
     }
 	
     /// Redistribute combined leftover value evenly among chain authorities
-    fn spend_dust(authorities: &[H256]) {
-        let dust = <DustTotal<T>>::take();
-        let dust_per_authority: Value = dust
+    fn spend_leftover(authorities: &[H256]) {
+        let leftover = <LeftoverTotal<T>>::take();
+        let share_value: Value = leftover
             .checked_div(authorities.len() as Value)
             .ok_or("No authorities")
             .unwrap();
-        if dust_per_authority == 0 {
-            return;
-        };
+        if share_value == 0 { return }
 
-        let dust_remainder = dust
-            .checked_sub(dust_per_authority * authorities.len() as Value)
+        let remainder = leftover
+            .checked_sub(share_value * authorities.len() as Value)
             .ok_or("Sub underflow")
             .unwrap();
-        <DustTotal<T>>::put(dust_remainder as Value);
+        <LeftoverTotal<T>>::put(remainder as Value);
 
         for authority in authorities {
             let utxo = TransactionOutput {
-                value: dust_per_authority,
+                value: share_value,
                 pubkey: *authority,
                 salt: <system::Module<T>>::block_number().as_(),
             };
@@ -199,14 +211,14 @@ impl<T: Trait> Module<T> {
     }
 
     /// Update storage to reflect changes made by transaction
-    fn update_storage(transaction: &Transaction, dust: Value) -> Result {
-        // Calculate new dust total
-        let dust_total = <DustTotal<T>>::get()
-            .checked_add(dust)
-            .ok_or("Dust overflow")?;
-        <DustTotal<T>>::put(dust_total);
+    fn update_storage(transaction: &Transaction, leftover: Value) -> Result {
+        // Calculate new leftover total
+        let new_total = <LeftoverTotal<T>>::get()
+            .checked_add(leftover)
+            .ok_or("Leftover overflow")?;
+        <LeftoverTotal<T>>::put(new_total);
 
-        // Storing updated dust value
+        // Storing updated leftover value
         for input in &transaction.inputs {
             <UnspentOutputs<T>>::remove(input.parent_output);
         }
@@ -240,23 +252,6 @@ impl<T: Trait> Module<T> {
     pub fn unlock_utxo(hash: &H256) -> Result {
         ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
         <LockedOutputs<T>>::remove(hash);
-        Ok(())
-    }
-
-    /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
-    /// Does not perform enough checks. Must only be used for testing purposes.
-    #[cfg(test)]
-    fn mint(value: Value, pubkey: H256) -> Result {
-        let salt:u64 = <system::Module<T>>::block_number().as_();
-        let utxo = TransactionOutput { value, pubkey, salt };
-        let hash = BlakeTwo256::hash_of(&utxo);
-
-        if !<UnspentOutputs<T>>::exists(hash) {
-            <UnspentOutputs<T>>::insert(hash, utxo);
-        } else {
-            runtime_io::print("cannot mint due to hash collision");
-        }
-
         Ok(())
     }
 }
@@ -301,27 +296,14 @@ mod tests {
     type Utxo = Module<Test>;
 
     // Test set up
-    // Alice's Public Key: from_legacy_string("Alice", Some("recover"));
-    const ALICE_KEY: [u8; 32] = [
-        209, 114, 167, 76, 218, 76, 134, 89, 18, 195, 43, 160, 168, 10, 87, 174, 105, 171, 174, 65,
-        14, 92, 203, 89, 222, 232, 78, 47, 68, 50, 219, 79,
-    ];
+    // Alice's Public Key: Pair::from_seed(*b"12345678901234567890123456789012");
+    const ALICE_KEY: [u8; 32] = [68, 169, 150, 190, 177, 238, 247, 189, 202, 185, 118, 171, 109, 44, 162, 97, 4, 131, 65, 100, 236, 242, 143, 179, 117, 96, 5, 118, 252, 198, 235, 15];
 
     // Alice's Signature to spend alice_utxo(): signs a token she owns Pair::sign(&message[..])
-    const ALICE_SIG: [u8; 64] = [
-        203, 25, 139, 36, 34, 10, 235, 226, 189, 110, 216, 143, 155, 17, 148, 6, 191, 239, 29, 227,
-        118, 59, 125, 216, 222, 242, 222, 49, 68, 49, 41, 242, 128, 133, 202, 59, 127, 159, 239,
-        139, 18, 88, 255, 236, 155, 254, 40, 185, 42, 96, 60, 156, 203, 11, 101, 239, 228, 218, 62,
-        202, 205, 17, 41, 7,
-    ];
+    const ALICE_SIG: [u8; 64] = [220, 109, 218, 80, 85, 118, 140, 48, 193, 19, 77, 200, 60, 229, 91, 60, 70, 54, 54, 137, 154, 51, 201, 252, 98, 219, 172, 57, 1, 139, 86, 47, 162, 21, 50, 179, 196, 135, 167, 29, 171, 85, 3, 111, 46, 110, 10, 25, 239, 152, 176, 82, 114, 192, 125, 182, 240, 19, 192, 85, 227, 101, 148, 0]; //[148, 250, 180, 5, 112, 29, 240, 241, 122, 26, 249, 125, 87, 102, 180, 179, 127, 79, 120, 72, 253, 21, 26, 215, 157, 35, 208, 126, 54, 181, 150, 12, 117, 177, 134, 104, 124, 16, 70, 249, 31, 4, 131, 192, 247, 143, 73, 123, 24, 66, 144, 189, 64, 90, 65, 79, 185, 36, 107, 135, 195, 212, 219, 10];
 
     // Alice's Signature to spend alice_utxo_100(): signs a token she owns Pair::sign(&message[..])
-    const ALICE_SIG100: [u8; 64] = [
-        37, 190, 14, 182, 163, 218, 61, 32, 245, 202, 94, 196, 186, 129, 171, 128, 91, 163, 51, 30,
-        146, 219, 237, 78, 145, 75, 195, 175, 212, 99, 230, 232, 234, 49, 208, 115, 146, 75, 228,
-        253, 244, 238, 116, 198, 138, 15, 111, 214, 243, 157, 62, 146, 122, 211, 217, 74, 27, 193,
-        223, 79, 114, 173, 233, 1,
-    ];
+    const ALICE_SIG100: [u8; 64] = [212, 108, 199, 137, 228, 149, 233, 230, 129, 251, 80, 16, 160, 95, 191, 199, 207, 176, 151, 234, 5, 157, 245, 136, 62, 169, 87, 203, 188, 11, 47, 76, 230, 159, 10, 125, 35, 244, 76, 89, 174, 52, 41, 78, 32, 102, 200, 231, 31, 22, 35, 42, 143, 85, 255, 235, 31, 58, 236, 95, 52, 205, 224, 2]; // [228, 33, 239, 151, 136, 93, 241, 82, 205, 248, 154, 139, 52, 157, 231, 222, 66, 242, 86, 120, 92, 170, 98, 214, 78, 226, 93, 229, 130, 174, 168, 26, 7, 151, 88, 13, 185, 161, 15, 247, 222, 85, 235, 107, 246, 135, 23, 47, 162, 71, 81, 29, 227, 230, 210, 112, 0, 157, 86, 218, 130, 11, 8, 0];
 
     // Creates a max value UTXO for Alice
     fn alice_utxo() -> (H256, TransactionOutput) {
@@ -368,7 +350,7 @@ mod tests {
     // ================================================
     //
     // The following tests simulate malicious UTXO transactions
-    // Implement the verify_transaction() function to thwart such attacks
+    // Implement the check_transaction() function to thwart such attacks
     //
     // Hint: Examine types CheckResult, CheckInfo for the expected behaviors of this function
     // Hint: Make this function public, as it will be later used outside of this module
@@ -399,6 +381,7 @@ mod tests {
         with_externalities(&mut new_test_ext(), || {
             let (parent_hash, _) = alice_utxo();
 
+            println!("PARENT HASH: {:x?}: ", parent_hash);
             let transaction = Transaction {
                 inputs: vec![
                     TransactionInput {
@@ -565,7 +548,7 @@ mod tests {
             );
         });
     }
-
+    
     #[test]
     fn valid_transaction() {
         with_externalities(&mut new_test_ext(), || {
@@ -582,7 +565,7 @@ mod tests {
                     salt: 2,
                 }],
             };
-
+            
             let output_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
 
             assert_ok!(Utxo::execute(Origin::INHERENT, transaction));

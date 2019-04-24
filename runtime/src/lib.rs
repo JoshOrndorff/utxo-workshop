@@ -41,6 +41,7 @@ pub use timestamp::Call as TimestampCall;
 pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
 
 /// The type used by authorities to prove their ID.
+/// TODO change this to sr25519 so authorites can redeem utxo
 pub type AuthoritySignature = ed25519::Signature;
 
 /// Alias to pubkey that identifies an account on the chain.
@@ -58,7 +59,7 @@ pub type BlockNumber = u64;
 /// Index of an account's extrinsic in the chain.
 pub type Nonce = u64;
 
-mod utxo;
+pub mod utxo;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -210,7 +211,7 @@ construct_runtime!(
 		Indices: indices,
 		Balances: balances,
 		Sudo: sudo,
-		Utxo: utxo::{Module, Call, Storage, Event},
+		Utxo: utxo::{Module, Call, Storage, Event, Config<T>},
 	}
 );
 
@@ -234,7 +235,6 @@ pub type Executive = executive::Executive<Runtime, Block, Context, Balances, All
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
-<<<<<<< HEAD
 	impl runtime_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
 			VERSION
@@ -281,7 +281,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	// TODO: https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html
+	// HINT: https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html
 	impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
 			use support::IsSubType;
