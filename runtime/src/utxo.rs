@@ -75,7 +75,7 @@ pub enum LockStatus<BlockNumber> {
 decl_storage! {
     trait Store for Module<T: Trait> as Utxo {
         /// All valid unspent transaction outputs are stored in this map.
-		/// Initial set of UTXO is populated from the list stored in genesis.
+        /// Initial set of UTXO is populated from the list stored in genesis.
         UnspentOutputs build(|config: &GenesisConfig<T>| {
             config.initial_utxo
                 .iter()
@@ -86,8 +86,8 @@ decl_storage! {
 
 
         /// Total leftover value to be redistributed among authorities.
-		/// It is accumulated during block execution and then drained
-		/// on block finalization.
+        /// It is accumulated during block execution and then drained
+        /// on block finalization.
         pub LeftoverTotal get(leftover_total): Value;
 
         /// All UTXO that are locked
@@ -170,14 +170,14 @@ impl<T: Trait> Module<T> {
     /// Check transaction for validity.
     /// 
     /// Ensures that:
-	/// - inputs and outputs are not empty
-	/// - all inputs match to existing, unspent and unlocked outputs
-	/// - each input is used exactly once
-	/// - each output is defined exactly once and has nonzero value
-	/// - total output value must not exceed total input value
-	/// - new outputs do not collide with existing ones
-	/// - sum of input and output values does not overflow
-	/// - provided signatures are valid
+    /// - inputs and outputs are not empty
+    /// - all inputs match to existing, unspent and unlocked outputs
+    /// - each input is used exactly once
+    /// - each output is defined exactly once and has nonzero value
+    /// - total output value must not exceed total input value
+    /// - new outputs do not collide with existing ones
+    /// - sum of input and output values does not overflow
+    /// - provided signatures are valid
     pub fn check_transaction(transaction: &Transaction) -> CheckResult<'_> {
         ensure!(!transaction.inputs.is_empty(), "no inputs");
         ensure!(!transaction.outputs.is_empty(), "no outputs");
@@ -605,8 +605,6 @@ mod tests {
         with_externalities(&mut new_test_ext(), || {
             let (parent_hash, _) = alice_utxo_100();
 
-            println!("PARENT 100 HASH: {:x?}: ", parent_hash);
-
             let transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: parent_hash,
@@ -650,7 +648,6 @@ mod tests {
                 }],
             };
             
-            println!("****Transaction Hash: {:x?}", transaction.encode());
             let output_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
 
             assert_ok!(Utxo::execute(Origin::INHERENT, transaction));

@@ -5,8 +5,8 @@ use utxo_runtime::{
     TimestampConfig, UtxoConfig,
 };
 
-use utxo_runtime::utxo;
 use primitives::H256;
+use utxo_runtime::utxo;
 
 use ed25519::Public as AuthorityId;
 
@@ -94,7 +94,10 @@ impl Alternative {
     }
 }
 
-const NICOLE: [u8; 32] = [68, 169, 150, 190, 177, 238, 247, 189, 202, 185, 118, 171, 109, 44, 162, 97, 4, 131, 65, 100, 236, 242, 143, 179, 117, 96, 5, 118, 252, 198, 235, 15];
+const NICOLE: [u8; 32] = [
+    68, 169, 150, 190, 177, 238, 247, 189, 202, 185, 118, 171, 109, 44, 162, 97, 4, 131, 65, 100,
+    236, 242, 143, 179, 117, 96, 5, 118, 252, 198, 235, 15,
+];
 
 fn testnet_genesis(
     initial_authorities: Vec<AuthorityId>,

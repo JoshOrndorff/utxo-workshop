@@ -319,14 +319,14 @@ impl_runtime_apis! {
                     // Transaction is missing inputs
                     Ok(utxo::CheckInfo::MissingInputs(missing)) => {
                         // Since some referred UTXOs were not found in the storage yet,
-						// we tag current transaction as requiring those particular UTXOs
+                        // we tag current transaction as requiring those particular UTXOs
                         requires = missing
                             .iter()         // copies itself into a new vec
                             .map(|hash| hash.as_fixed_bytes().to_vec())
                             .collect();
 
                         // Transaction could not be validated at this point,
-						// so we have no sane way to calculate the priority    
+                        // so we have no sane way to calculate the priority    
                         priority = 0;
                     }
                 }
