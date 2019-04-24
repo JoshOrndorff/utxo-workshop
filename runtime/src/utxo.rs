@@ -1,18 +1,18 @@
 // Original Author: @0x7CFE
+use super::Consensus;
+use parity_codec::{Decode, Encode};
+use primitives::{H256, H512};
+use rstd::collections::btree_map::BTreeMap;
+use runtime_io::sr25519_verify;
+use runtime_primitives::traits::{As, BlakeTwo256, Hash};
+#[cfg(feature = "std")]
+use serde_derive::{Deserialize, Serialize};
 use support::{
     decl_event, decl_module, decl_storage,
     dispatch::{Result, Vec},
     ensure, StorageMap, StorageValue,
 };
-use primitives::{H256, H512};
-use rstd::collections::btree_map::BTreeMap;
-use runtime_primitives::traits::{As, BlakeTwo256, Hash};
 use system::{ensure_inherent, ensure_signed};
-use super::Consensus;
-use parity_codec::{Decode, Encode};
-use runtime_io::sr25519_verify;
-#[cfg(feature = "std")]
-use serde_derive::{Deserialize, Serialize};
 
 pub trait Trait: system::Trait {
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
@@ -30,7 +30,7 @@ type Signature = H512;
 pub struct Transaction {
     /// UTXOs to be used as inputs for current transaction
     pub inputs: Vec<TransactionInput>,
-    
+
     /// UTXOs to be created as a result of current transaction dispatch
     pub outputs: Vec<TransactionOutput>,
 }
@@ -41,7 +41,7 @@ pub struct Transaction {
 pub struct TransactionInput {
     /// Reference to an UTXO to be spent
     pub parent_output: H256,
-    
+
     /// Proof that transaction owner is authorized to spend referred UTXO
     pub signature: Signature,
 }
@@ -54,13 +54,13 @@ pub struct TransactionOutput {
     pub value: Value,
 
     /// Public key associated with this output. In order to spend this output
-	/// owner must provide a proof by hashing whole `TransactionOutput` and
-	/// signing it with a corresponding private key.
+    /// owner must provide a proof by hashing whole `TransactionOutput` and
+    /// signing it with a corresponding private key.
     pub pubkey: H256,
 
     /// Unique (potentially random) value used to distinguish this
-	/// particular output from others addressed to the same public
-	/// key with the same value. Prevents potential replay attacks.
+    /// particular output from others addressed to the same public
+    /// key with the same value. Prevents potential replay attacks.
     pub salt: u64,
 }
 
@@ -169,13 +169,14 @@ pub type CheckResult<'a> = rstd::result::Result<CheckInfo<'a>, &'static str>;
 impl<T: Trait> Module<T> {
     /// Check transaction for validity.
     pub fn check_transaction(transaction: &Transaction) -> CheckResult<'_> {
-        
         // TODO
 
-        Ok(CheckInfo::Totals { input: 0, output: 0 })
-        
+        Ok(CheckInfo::Totals {
+            input: 0,
+            output: 0,
+        })
     }
-	
+
     /// Redistribute combined leftover value evenly among chain authorities
     fn spend_leftover(authorities: &[H256]) {
         let leftover = <LeftoverTotal<T>>::take();
@@ -183,7 +184,9 @@ impl<T: Trait> Module<T> {
             .checked_div(authorities.len() as Value)
             .ok_or("No authorities")
             .unwrap();
-        if share_value == 0 { return }
+        if share_value == 0 {
+            return;
+        }
 
         let remainder = leftover
             .checked_sub(share_value * authorities.len() as Value)
@@ -297,13 +300,26 @@ mod tests {
 
     // Test set up
     // Alice's Public Key: Pair::from_seed(*b"12345678901234567890123456789012");
-    const ALICE_KEY: [u8; 32] = [68, 169, 150, 190, 177, 238, 247, 189, 202, 185, 118, 171, 109, 44, 162, 97, 4, 131, 65, 100, 236, 242, 143, 179, 117, 96, 5, 118, 252, 198, 235, 15];
+    const ALICE_KEY: [u8; 32] = [
+        68, 169, 150, 190, 177, 238, 247, 189, 202, 185, 118, 171, 109, 44, 162, 97, 4, 131, 65,
+        100, 236, 242, 143, 179, 117, 96, 5, 118, 252, 198, 235, 15,
+    ];
 
     // Alice's Signature to spend alice_utxo(): signs a token she owns Pair::sign(&message[..])
-    const ALICE_SIG: [u8; 64] = [220, 109, 218, 80, 85, 118, 140, 48, 193, 19, 77, 200, 60, 229, 91, 60, 70, 54, 54, 137, 154, 51, 201, 252, 98, 219, 172, 57, 1, 139, 86, 47, 162, 21, 50, 179, 196, 135, 167, 29, 171, 85, 3, 111, 46, 110, 10, 25, 239, 152, 176, 82, 114, 192, 125, 182, 240, 19, 192, 85, 227, 101, 148, 0]; //[148, 250, 180, 5, 112, 29, 240, 241, 122, 26, 249, 125, 87, 102, 180, 179, 127, 79, 120, 72, 253, 21, 26, 215, 157, 35, 208, 126, 54, 181, 150, 12, 117, 177, 134, 104, 124, 16, 70, 249, 31, 4, 131, 192, 247, 143, 73, 123, 24, 66, 144, 189, 64, 90, 65, 79, 185, 36, 107, 135, 195, 212, 219, 10];
+    const ALICE_SIG: [u8; 64] = [
+        220, 109, 218, 80, 85, 118, 140, 48, 193, 19, 77, 200, 60, 229, 91, 60, 70, 54, 54, 137,
+        154, 51, 201, 252, 98, 219, 172, 57, 1, 139, 86, 47, 162, 21, 50, 179, 196, 135, 167, 29,
+        171, 85, 3, 111, 46, 110, 10, 25, 239, 152, 176, 82, 114, 192, 125, 182, 240, 19, 192, 85,
+        227, 101, 148, 0,
+    ]; //[148, 250, 180, 5, 112, 29, 240, 241, 122, 26, 249, 125, 87, 102, 180, 179, 127, 79, 120, 72, 253, 21, 26, 215, 157, 35, 208, 126, 54, 181, 150, 12, 117, 177, 134, 104, 124, 16, 70, 249, 31, 4, 131, 192, 247, 143, 73, 123, 24, 66, 144, 189, 64, 90, 65, 79, 185, 36, 107, 135, 195, 212, 219, 10];
 
     // Alice's Signature to spend alice_utxo_100(): signs a token she owns Pair::sign(&message[..])
-    const ALICE_SIG100: [u8; 64] = [212, 108, 199, 137, 228, 149, 233, 230, 129, 251, 80, 16, 160, 95, 191, 199, 207, 176, 151, 234, 5, 157, 245, 136, 62, 169, 87, 203, 188, 11, 47, 76, 230, 159, 10, 125, 35, 244, 76, 89, 174, 52, 41, 78, 32, 102, 200, 231, 31, 22, 35, 42, 143, 85, 255, 235, 31, 58, 236, 95, 52, 205, 224, 2]; // [228, 33, 239, 151, 136, 93, 241, 82, 205, 248, 154, 139, 52, 157, 231, 222, 66, 242, 86, 120, 92, 170, 98, 214, 78, 226, 93, 229, 130, 174, 168, 26, 7, 151, 88, 13, 185, 161, 15, 247, 222, 85, 235, 107, 246, 135, 23, 47, 162, 71, 81, 29, 227, 230, 210, 112, 0, 157, 86, 218, 130, 11, 8, 0];
+    const ALICE_SIG100: [u8; 64] = [
+        212, 108, 199, 137, 228, 149, 233, 230, 129, 251, 80, 16, 160, 95, 191, 199, 207, 176, 151,
+        234, 5, 157, 245, 136, 62, 169, 87, 203, 188, 11, 47, 76, 230, 159, 10, 125, 35, 244, 76,
+        89, 174, 52, 41, 78, 32, 102, 200, 231, 31, 22, 35, 42, 143, 85, 255, 235, 31, 58, 236, 95,
+        52, 205, 224, 2,
+    ]; // [228, 33, 239, 151, 136, 93, 241, 82, 205, 248, 154, 139, 52, 157, 231, 222, 66, 242, 86, 120, 92, 170, 98, 214, 78, 226, 93, 229, 130, 174, 168, 26, 7, 151, 88, 13, 185, 161, 15, 247, 222, 85, 235, 107, 246, 135, 23, 47, 162, 71, 81, 29, 227, 230, 210, 112, 0, 157, 86, 218, 130, 11, 8, 0];
 
     // Creates a max value UTXO for Alice
     fn alice_utxo() -> (H256, TransactionOutput) {
@@ -548,7 +564,7 @@ mod tests {
             );
         });
     }
-    
+
     #[test]
     fn valid_transaction() {
         with_externalities(&mut new_test_ext(), || {
@@ -565,7 +581,7 @@ mod tests {
                     salt: 2,
                 }],
             };
-            
+
             let output_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
 
             assert_ok!(Utxo::execute(Origin::INHERENT, transaction));

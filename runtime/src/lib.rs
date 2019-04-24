@@ -235,85 +235,85 @@ pub type Executive = executive::Executive<Runtime, Block, Context, Balances, All
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
-	impl runtime_api::Core<Block> for Runtime {
-		fn version() -> RuntimeVersion {
-			VERSION
-		}
+    impl runtime_api::Core<Block> for Runtime {
+        fn version() -> RuntimeVersion {
+            VERSION
+        }
 
-		fn execute_block(block: Block) {
-			Executive::execute_block(block)
-		}
+        fn execute_block(block: Block) {
+            Executive::execute_block(block)
+        }
 
-		fn initialize_block(header: &<Block as BlockT>::Header) {
-			Executive::initialize_block(header)
-		}
+        fn initialize_block(header: &<Block as BlockT>::Header) {
+            Executive::initialize_block(header)
+        }
 
-		fn authorities() -> Vec<AuthorityId> {
-			panic!("Deprecated, please use `AuthoritiesApi`.")
-		}
-	}
+        fn authorities() -> Vec<AuthorityId> {
+            panic!("Deprecated, please use `AuthoritiesApi`.")
+        }
+    }
 
-	impl runtime_api::Metadata<Block> for Runtime {
-		fn metadata() -> OpaqueMetadata {
-			Runtime::metadata().into()
-		}
-	}
+    impl runtime_api::Metadata<Block> for Runtime {
+        fn metadata() -> OpaqueMetadata {
+            Runtime::metadata().into()
+        }
+    }
 
-	impl block_builder_api::BlockBuilder<Block> for Runtime {
-		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
-			Executive::apply_extrinsic(extrinsic)
-		}
+    impl block_builder_api::BlockBuilder<Block> for Runtime {
+        fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
+            Executive::apply_extrinsic(extrinsic)
+        }
 
-		fn finalize_block() -> <Block as BlockT>::Header {
-			Executive::finalize_block()
-		}
+        fn finalize_block() -> <Block as BlockT>::Header {
+            Executive::finalize_block()
+        }
 
-		fn inherent_extrinsics(data: InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
-			data.create_extrinsics()
-		}
+        fn inherent_extrinsics(data: InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+            data.create_extrinsics()
+        }
 
-		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
-			data.check_extrinsics(&block)
-		}
+        fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
+            data.check_extrinsics(&block)
+        }
 
-		fn random_seed() -> <Block as BlockT>::Hash {
-			System::random_seed()
-		}
-	}
+        fn random_seed() -> <Block as BlockT>::Hash {
+            System::random_seed()
+        }
+    }
 
-	// HINT: https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html
-	impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
-		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
-			use support::IsSubType;
-			use runtime_primitives::{
-				traits::Hash,
-				transaction_validity::{TransactionLongevity, TransactionPriority, TransactionValidity},
-			};
+    // HINT: https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html
+    impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
+        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
+            use support::IsSubType;
+            use runtime_primitives::{
+                traits::Hash,
+                transaction_validity::{TransactionLongevity, TransactionPriority, TransactionValidity},
+            };
 
-			if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>>::is_aux_sub_type(&tx.function) {
-				// TODO
-			}
-			
-			// For non UTXO::execute extrinsics
-			Executive::validate_transaction(tx)
-		}
-	}
+            if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>>::is_aux_sub_type(&tx.function) {
+                // TODO
+            }
 
-	impl consensus_aura::AuraApi<Block> for Runtime {
-		fn slot_duration() -> u64 {
-			Aura::slot_duration()
-		}
-	}
+            // For non UTXO::execute extrinsics
+            Executive::validate_transaction(tx)
+        }
+    }
 
-	impl offchain_primitives::OffchainWorkerApi<Block> for Runtime {
-		fn offchain_worker(n: NumberFor<Block>) {
-			Executive::offchain_worker(n)
-		}
-	}
+    impl consensus_aura::AuraApi<Block> for Runtime {
+        fn slot_duration() -> u64 {
+            Aura::slot_duration()
+        }
+    }
 
-	impl consensus_authorities::AuthoritiesApi<Block> for Runtime {
-		fn authorities() -> Vec<AuthorityId> {
-			Consensus::authorities()
-		}
-	}
+    impl offchain_primitives::OffchainWorkerApi<Block> for Runtime {
+        fn offchain_worker(n: NumberFor<Block>) {
+            Executive::offchain_worker(n)
+        }
+    }
+
+    impl consensus_authorities::AuthoritiesApi<Block> for Runtime {
+        fn authorities() -> Vec<AuthorityId> {
+            Consensus::authorities()
+        }
+    }
 }
