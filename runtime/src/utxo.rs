@@ -168,7 +168,7 @@ pub type CheckResult<'a> = rstd::result::Result<CheckInfo<'a>, &'static str>;
 
 impl<T: Trait> Module<T> {
     /// Check transaction for validity.
-    pub fn verify_transaction(transaction: &Transaction) -> CheckResult<'_> {
+    pub fn check_transaction(transaction: &Transaction) -> CheckResult<'_> {
         
         // TODO
 
