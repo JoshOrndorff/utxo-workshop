@@ -37,7 +37,7 @@ cargo install --git https://github.com/alexcrichton/wasm-gc
 ### Clone the workshop boilerplate
 ```zsh
 git clone https://github.com/nczhu/utxo-workshop.git
-git checkout -b workshop
+git checkout workshop
 
 # Double check that it builds correctly
 ./build.sh
@@ -124,8 +124,8 @@ You can try building the following extensions:
 
 ```zsh
 # In the Runtime repo
-./target/release/utxo-runtime purge-chain -—dev // If you need to purge your db
-./target/release/utxo-runtime —-dev
+./target/release/utxo purge-chain // If you need to purge your db
+./target/release/utxo
 ```
 
 1. Visit [Polkadot JS](https://substrate-ui.parity.io/#/settings)
@@ -151,7 +151,7 @@ You can try building the following extensions:
 }
 ```
 
-3. Create an account `Alice1` from this seed using `sr25519`:
+3. Go to "Accounts > Create Account".  Create an account `Alice1` from this seed using `sr25519`:
 `0x9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60`
 
 4. Check that the genesis block contains 1 pre-configured UTXO for Alice as follows:
