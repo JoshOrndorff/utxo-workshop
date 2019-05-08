@@ -251,7 +251,7 @@ impl<T: Trait> Module<T> {
             );
             Ok(CheckInfo::Totals {
                 input: total_input,
-                output: total_input,
+                output: total_output,
             })
         } else {
             Ok(CheckInfo::MissingInputs(missing_utxo))
