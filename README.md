@@ -34,9 +34,18 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup update stable
 cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
-### Clone the workshop boilerplate
+### Fork the workshop boilerplate
+
+Fork the workshop to create your own copy of it in your GitHub repository.
+Go https://github.com/nczhu/utxo-workshop/fork and choose your GitHub repository username.
+
+### Clone your fork of the workshop
+
+Clone your copy of the workshop codebase and switch to the workshop branch
+
 ```zsh
-git clone https://github.com/nczhu/utxo-workshop.git
+git clone https://github.com/<INSERT-YOUR-GITHUB-USERNAME>/utxo-workshop.git
+git fetch origin workshop:workshop
 git checkout workshop
 
 # Double check that it builds correctly
@@ -49,7 +58,7 @@ UTXO validates transactions as follows:
 - Check signatures
 - Check all inputs are unspent 
 - Check input == output value
-- Set Input to “spent”
+- Set Input to "spent"
 
 Similarly in our UTXO implementation, we need to prevent malicious users from sending bad transactions. `utxo.rs` contains some tests that simulate these malicious attacks. 
 
@@ -58,7 +67,7 @@ Your challenge is to extend the implementation such that only secure transaction
 *Hint: Remember the check-before-state-change pattern!*
 
 ### Directions
-*Make sure you are on the `workshop` branch*
+*Make sure you have created a local copy of the remote `workshop` branch*
 
 1. Run cargo test: `cargo test -p utxo-runtime`
 
