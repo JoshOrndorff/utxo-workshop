@@ -6,7 +6,7 @@ For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo
 
 ## Project Structure
 - `master` branch contains the full solution (cheats).
-- `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walks you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
+- `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walk you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
 
 ## Workshop
 
