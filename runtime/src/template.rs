@@ -13,7 +13,7 @@ use system::ensure_signed;
 
 /// The module's configuration trait.
 pub trait Trait: system::Trait {
-	// TODO: Add other types and constants required configure this module.
+	// TODO: Add other types and constants required to configure this module.
 
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
@@ -23,7 +23,7 @@ pub trait Trait: system::Trait {
 decl_storage! {
 	trait Store for Module<T: Trait> as TemplateModule {
 		// Just a dummy storage item. 
-		// Here we are declaring a StorageValue, `Something` as a Option<u32>
+		// Here we are declaring a StorageValue, `Something` as an Option<u32>
 		// `get(something)` is the default getter which returns either the stored `u32` or `None` if nothing stored
 		Something get(something): Option<u32>;
 	}
@@ -57,8 +57,8 @@ decl_module! {
 decl_event!(
 	pub enum Event<T> where AccountId = <T as system::Trait>::AccountId {
 		// Just a dummy event.
-		// Event `Something` is declared with a parameter of the type `u32` and `AccountId`
-		// To emit this event, we call the deposit funtion, from our runtime funtions
+		// Event `SomethingStored` is declared with a parameter of the type `u32` and `AccountId`
+		// To emit this event, we call the deposit function, from our runtime funtions
 		SomethingStored(u32, AccountId),
 	}
 );
@@ -113,7 +113,7 @@ mod tests {
 	#[test]
 	fn it_works_for_default_value() {
 		with_externalities(&mut new_test_ext(), || {
-			// Just a dummy test for the dummy funtion `do_something`
+			// Just a dummy test for the dummy function `do_something`
 			// calling the `do_something` function with a value 42
 			assert_ok!(TemplateModule::do_something(Origin::signed(1), 42));
 			// asserting that the stored value is equal to what we stored
