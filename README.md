@@ -4,6 +4,8 @@ A UTXO chain implementation on Substrate. This repo is an updated implementation
 
 For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo-Polkadot-UI).
 
+*Caveat: this implementation is being security reviewed and has outstanding issues. Do not use this implementation in production. It is for educational purposes only!*
+
 ## Project Structure
 - `master` branch contains the full solution (cheats).
 - `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walk you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
