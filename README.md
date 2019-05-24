@@ -133,7 +133,7 @@ You can try building the following extensions:
 
 ```zsh
 # In the Runtime repo
-./target/release/utxo purge-chain // If you need to purge your db
+./target/release/utxo purge-chain --dev // If you need to purge your db
 ./target/release/utxo --dev
 ```
 
