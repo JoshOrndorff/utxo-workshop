@@ -134,7 +134,7 @@ You can try building the following extensions:
 ```zsh
 # In the Runtime repo
 ./target/release/utxo purge-chain // If you need to purge your db
-./target/release/utxo
+./target/release/utxo --dev
 ```
 
 1. Visit [Polkadot JS](https://substrate-ui.parity.io/#/settings)
