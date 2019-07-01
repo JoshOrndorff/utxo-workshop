@@ -1,14 +1,13 @@
 use primitives::{ed25519, sr25519, Pair};
 use substrate_service;
 use utxo_runtime::{
-    AccountId, BalancesConfig, ConsensusConfig, GenesisConfig, IndicesConfig, SudoConfig,
-    TimestampConfig, UtxoConfig,
+    AccountId,  AuraId as AuthorityId, BalancesConfig,  AuraConfig, GenesisConfig, IndicesConfig, SudoConfig,
+    TimestampConfig, SystemConfig, UtxoConfig
 };
 
 use primitives::H256;
 use utxo_runtime::utxo;
 
-use ed25519::Public as AuthorityId;
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -105,38 +104,42 @@ fn testnet_genesis(
     root_key: AccountId,
 ) -> GenesisConfig {
     GenesisConfig {
-		consensus: Some(ConsensusConfig {
-			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/utxo_runtime_wasm.compact.wasm").to_vec(),
-			authorities: initial_authorities.clone(),
-		}),
-		system: None,
-		timestamp: Some(TimestampConfig {
-			minimum_period: 5, // 10 second block time.
-		}),
-		indices: Some(IndicesConfig {
-			ids: endowed_accounts.clone(),
-		}),
-		balances: Some(BalancesConfig {
-			transaction_base_fee: 1,
-			transaction_byte_fee: 0,
-			existential_deposit: 500,
-			transfer_fee: 0,
-			creation_fee: 0,
-			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
-			vesting: vec![],
-		}),
-		sudo: Some(SudoConfig {
-			key: root_key,
-		}),
+        system: Some(SystemConfig {
+            code: include_bytes!(
+                "../runtime/wasm/target/wasm32-unknown-unknown/release/utxo_runtime_wasm.compact.wasm"
+                ).to_vec(),
+            changes_trie_config: Default::default(),
+        }),
+        aura: Some(AuraConfig {
+            authorities: initial_authorities.clone(),
+        }),
+        timestamp: Some(TimestampConfig {
+            minimum_period: 5, // 10 second block time.
+        }),
+        indices: Some(IndicesConfig {
+            ids: endowed_accounts.clone(),
+        }),
+        balances: Some(BalancesConfig {
+            transaction_base_fee: 1,
+            transaction_byte_fee: 0,
+            existential_deposit: 500,
+            transfer_fee: 0,
+            creation_fee: 0,
+            balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
+            vesting: vec![],
+        }),
+        sudo: Some(SudoConfig {
+            key: root_key,
+        }),
         utxo: Some(UtxoConfig {
             initial_utxo: vec![
-				utxo::TransactionOutput {
-					value: utxo::Value::max_value(),
-					pubkey: H256::from_slice(&NICOLE),
-					salt: 0,
-				}
-			],
+                utxo::TransactionOutput {
+                    value: utxo::Value::max_value(),
+                    pubkey: H256::from_slice(&NICOLE),
+                    salt: 0,
+                }
+            ],
             ..Default::default()
         }),
-	}
+    }
 }

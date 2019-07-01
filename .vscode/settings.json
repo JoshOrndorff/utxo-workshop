@@ -1,0 +1,4 @@
+{
+    "files.autoSave": "afterDelay",
+    "rust.clippy_preference": "on"
+}

@@ -3199,21 +3199,16 @@ dependencies = [
  "srml-balances 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "srml-executive 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "srml-indices 2.0.0 (git+https://github.com/paritytech/substrate.git)",
+ "srml-session 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "srml-sudo 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "srml-support 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "srml-system 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "srml-timestamp 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "substrate-client 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "substrate-consensus-aura-primitives 2.0.0 (git+https://github.com/paritytech/substrate.git)",
+ "substrate-consensus-common 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "substrate-offchain-primitives 2.0.0 (git+https://github.com/paritytech/substrate.git)",
  "substrate-primitives 2.0.0 (git+https://github.com/paritytech/substrate.git)",
-]
-
-[[package]]
-name = "utxo-runtime-wasm"
-version = "2.0.0"
-dependencies = [
- "utxo-runtime 2.0.0",
 ]
 
 [[package]]
