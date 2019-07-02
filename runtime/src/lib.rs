@@ -1,5 +1,6 @@
-//! The Substrate Node Template runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+#![allow(clippy::drop_ref)]
 
+//! The Substrate Node Template runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
@@ -32,7 +33,7 @@ pub use balances::Call as BalancesCall;
 #[cfg(any(feature = "std", test))]
 pub use runtime_primitives::BuildStorage;
 pub use runtime_primitives::{Perbill, Permill};
-pub use support::{construct_runtime, StorageValue};
+pub use support::{construct_runtime, parameter_types, StorageValue};
 pub use timestamp::BlockPeriod;
 pub use timestamp::Call as TimestampCall;
 
@@ -154,6 +155,14 @@ impl timestamp::Trait for Runtime {
     type OnTimestampSet = Aura;
 }
 
+parameter_types! {
+    pub const ExistentialDeposit: u128 = 500;
+    pub const TransferFee: u128 = 0;
+    pub const CreationFee: u128 = 0;
+    pub const TransactionBaseFee: u128 = 1;
+    pub const TransactionByteFee: u128 = 0;
+}
+
 impl balances::Trait for Runtime {
     /// The type for recording an account's balance.
     type Balance = u128;
@@ -167,6 +176,12 @@ impl balances::Trait for Runtime {
     type TransactionPayment = ();
     type DustRemoval = ();
     type TransferPayment = ();
+
+    type ExistentialDeposit = ExistentialDeposit;
+    type TransferFee = TransferFee;
+    type CreationFee = CreationFee;
+    type TransactionBaseFee = TransactionBaseFee;
+    type TransactionByteFee = TransactionByteFee;
 }
 
 impl sudo::Trait for Runtime {
@@ -258,7 +273,6 @@ impl_runtime_apis! {
         }
     }
 
-    // HINT: https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html
     impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             use support::IsSubType;
@@ -267,11 +281,63 @@ impl_runtime_apis! {
                 transaction_validity::{TransactionLongevity, TransactionPriority, TransactionValidity},
             };
 
-            if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>>::is_aux_sub_type(&tx.function) {
-                // TODO
+            if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_aux_sub_type(&tx.function) {
+                // List of tags to require
+                let requires;
+
+                // Transaction priority to assign
+                let priority : TransactionPriority;
+
+                const INVALID_UTXO: i8 = -99;
+
+                match <utxo::Module<Runtime>>::check_transaction(&transaction) {
+                    // Transaction verification failed
+                    Err(e) => {
+                        runtime_io::print(e);
+                        return TransactionValidity::Invalid(INVALID_UTXO);
+                    }
+
+                    // Transaction is valid and verified
+                    Ok(utxo::CheckInfo::Totals {input, output}) => {
+                        // All input UTXOs were found, so we consider input conditions to be met
+                        requires = Vec::new();
+
+                        // Priority is based on a transaction fee that is equal to the leftover value
+                        let max_priority = utxo::Value::from(TransactionPriority::max_value());
+                        priority = max_priority.min(input - output) as TransactionPriority;
+                    }
+
+                    // Transaction is missing inputs
+                    Ok(utxo::CheckInfo::MissingInputs(missing)) => {
+                        // Since some referred UTXOs were not found in the storage yet,
+                        // we tag current transaction as requiring those particular UTXOs
+                        requires = missing
+                            .iter()         // copies itself into a new vec
+                            .map(|hash| hash.as_fixed_bytes().to_vec())
+                            .collect();
+
+                        // Transaction could not be validated at this point,
+                        // so we have no sane way to calculate the priority
+                        priority = 0;
+                    }
+                }
+
+                // Output tags this transaction provides
+                let provides = transaction.outputs
+                    .iter()
+                    .map(|output| BlakeTwo256::hash_of(output).as_fixed_bytes().to_vec())
+                    .collect();
+
+                return TransactionValidity::Valid {
+                    requires,
+                    provides,
+                    priority,
+                    longevity: TransactionLongevity::max_value(),
+                    propagate: true
+                };
             }
 
-            // For non UTXO::execute extrinsics
+            // Fall back to default logic for non UTXO::execute extrinsics
             Executive::validate_transaction(tx)
         }
     }

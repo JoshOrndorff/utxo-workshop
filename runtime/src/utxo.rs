@@ -1,10 +1,11 @@
 use super::Aura;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-
 use parity_codec::{Decode, Encode};
 use primitives::{H256, H512};
+use rstd::collections::btree_set::BTreeSet;
+use runtime_io::sr25519_verify;
 use runtime_primitives::traits::{BlakeTwo256, Hash, SaturatedConversion};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use support::{
     decl_event, decl_module, decl_storage,
     dispatch::{Result, Vec},
@@ -167,12 +168,69 @@ pub type CheckResult<'a> = rstd::result::Result<CheckInfo<'a>, &'static str>;
 impl<T: Trait> Module<T> {
     /// Check transaction for validity.
     pub fn check_transaction(transaction: &Transaction) -> CheckResult<'_> {
-        // TODO
+        ensure!(!transaction.inputs.is_empty(), "no inputs");
+        ensure!(!transaction.outputs.is_empty(), "no outputs");
 
-        Ok(CheckInfo::Totals {
-            input: 0,
-            output: 0,
-        })
+        let mut input_sum: u128 = 0;
+
+        let mut input_used = BTreeSet::new();
+        let mut missed_utxo = Vec::new();
+        for input in &transaction.inputs {
+            if let Some(parent_output) = UnspentOutputs::get(&input.parent_output) {
+                ensure!(
+                    !<LockedOutputs<T>>::exists(&input.parent_output),
+                    "locked utxo"
+                );
+
+                ensure!(
+                    !input_used.contains(&input.parent_output),
+                    "each input must only be used once"
+                );
+
+                ensure!(
+                    sr25519_verify(
+                        input.signature.as_fixed_bytes(),
+                        input.parent_output.as_fixed_bytes(),
+                        &parent_output.pubkey
+                    ),
+                    "signature must be valid"
+                );
+
+                input_used.insert(input.parent_output);
+                input_sum = input_sum
+                    .checked_add(parent_output.value)
+                    .ok_or("input value overflow")?;
+            } else {
+                missed_utxo.push(&input.parent_output);
+            }
+        }
+        let mut output_generated = BTreeSet::new();
+        let mut output_sum: u128 = 0;
+        for output in &transaction.outputs {
+            ensure!(output.value > 0, "output value must be nonzero");
+            ensure!(
+                !output_generated.contains(output),
+                "each output must be defined only once"
+            );
+            output_generated.insert(output);
+            output_sum = output_sum
+                .checked_add(output.value)
+                .ok_or("output value overflow")?;
+        }
+
+        if missed_utxo.is_empty() {
+            ensure!(
+                input_sum >= output_sum,
+                "output value must not exceed input value"
+            );
+
+            Ok(CheckInfo::Totals {
+                input: input_sum,
+                output: output_sum,
+            })
+        } else {
+            Ok(CheckInfo::MissingInputs(missed_utxo))
+        }
     }
 
     /// Redistribute combined leftover value evenly among chain authorities
