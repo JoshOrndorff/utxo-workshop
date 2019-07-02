@@ -2,37 +2,39 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 
-use parity_codec::{Encode, Decode};
-use rstd::prelude::*;
+use client::{
+    block_builder::api::{self as block_builder_api, CheckInherentsResult, InherentData},
+    impl_runtime_apis, runtime_api,
+};
+use parity_codec::{Decode, Encode};
 #[cfg(feature = "std")]
 use primitives::bytes;
 use primitives::{ed25519, sr25519, OpaqueMetadata};
+use rstd::prelude::*;
 use runtime_primitives::{
-    ApplyResult, transaction_validity::TransactionValidity, generic, create_runtime_str,
-    traits::{self, NumberFor, BlakeTwo256, Block as BlockT, StaticLookup, Verify}
-};
-use client::{
-    block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
-    runtime_api, impl_runtime_apis
+    create_runtime_str, generic,
+    traits::{self, BlakeTwo256, Block as BlockT, NumberFor, StaticLookup, Verify},
+    transaction_validity::TransactionValidity,
+    ApplyResult,
 };
 
 #[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "std")]
 use version::NativeVersion;
 use version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
+pub use balances::Call as BalancesCall;
 #[cfg(any(feature = "std", test))]
 pub use runtime_primitives::BuildStorage;
-pub use timestamp::Call as TimestampCall;
-pub use balances::Call as BalancesCall;
-pub use runtime_primitives::{Permill, Perbill};
+pub use runtime_primitives::{Perbill, Permill};
+pub use support::{construct_runtime, StorageValue};
 pub use timestamp::BlockPeriod;
-pub use support::{StorageValue, construct_runtime};
+pub use timestamp::Call as TimestampCall;
 
 /// Alias to the signature scheme used for Aura authority signatures.
 pub type AuraSignature = ed25519::Signature;
@@ -80,7 +82,7 @@ pub mod opaque {
         }
     }
     /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256    >;
+    pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
     /// Opaque block type.
     pub type Block = generic::Block<Header, UncheckedExtrinsic>;
     /// Opaque block identifier type.

@@ -1,4 +1,4 @@
-// use super::Aura;
+use super::Aura;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -14,10 +14,9 @@ use system::{ensure_none, ensure_signed};
 
 /// The module's configuration trait.
 pub trait Trait: system::Trait {
-	/// The overarching event type.
+    /// The overarching event type.
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
 }
-
 
 /// Representation of UTXO value
 pub type Value = u128;
@@ -78,9 +77,7 @@ decl_storage! {
         /// All valid unspent transaction outputs are stored in this map.
         /// Initial set of UTXO is populated from the list stored in genesis.
         UnspentOutputs build(|conf: &GenesisConfig| {
-            conf.initial_utxo
-                .iter()
-                .cloned()
+            conf.initial_utxo.iter().cloned()
                 .map(|u| (BlakeTwo256::hash_of(&u), u))
                 .collect::<Vec<_>>()
         }): map H256 => Option<TransactionOutput>;
@@ -142,8 +139,8 @@ decl_module! {
 
         /// Handler called by the system on block finalization
         fn on_finalize() {
-            // let auth:Vec<_> = Aura::authorities().iter().map(|x| x.0.into() ).collect();
-            // Self::spend_leftover(&auth);
+            let auth:Vec<_> = Aura::authorities().iter().map(|x| x.0.into() ).collect();
+            Self::spend_leftover(&auth);
         }
     }
 }
@@ -268,7 +265,7 @@ mod tests {
     use primitives::{Blake2Hasher, H256};
     use runtime_io::with_externalities;
     use runtime_primitives::{
-        testing::{Header},
+        testing::Header,
         traits::{BlakeTwo256, IdentityLookup},
         BuildStorage,
     };
@@ -345,7 +342,10 @@ mod tests {
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
     fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap().0;
+        let mut t = system::GenesisConfig::default()
+            .build_storage::<Test>()
+            .unwrap()
+            .0;
         t.extend(
             GenesisConfig {
                 initial_utxo: vec![alice_utxo().1, alice_utxo_100().1],

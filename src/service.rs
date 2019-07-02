@@ -2,23 +2,22 @@
 
 #![warn(unused_extern_crates)]
 
-use std::sync::Arc;
-use log::info;
-use transaction_pool::{self, txpool::{Pool as TransactionPool}};
-use substrate_service::{
-    FactoryFullConfiguration, LightComponents, FullComponents, FullBackend,
-    FullClient, LightClient, LightBackend, FullExecutor, LightExecutor,
-    error::{Error as ServiceError},
-};
 use basic_authorship::ProposerFactory;
 use consensus::{import_queue, start_aura, AuraImportQueue, SlotDuration};
 use futures::prelude::*;
-use substrate_client::{self as client, LongestChain};
-use primitives::{ed25519::Pair, Pair as PairT};
 use inherents::InherentDataProviders;
+use log::info;
 use network::construct_simple_protocol;
+use primitives::{ed25519::Pair, Pair as PairT};
+use std::sync::Arc;
+use substrate_client::{self as client, LongestChain};
 use substrate_executor::native_executor_instance;
 use substrate_service::construct_service_factory;
+use substrate_service::{
+    error::Error as ServiceError, FactoryFullConfiguration, FullBackend, FullClient,
+    FullComponents, FullExecutor, LightBackend, LightClient, LightComponents, LightExecutor,
+};
+use transaction_pool::{self, txpool::Pool as TransactionPool};
 
 use utxo_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi};
 

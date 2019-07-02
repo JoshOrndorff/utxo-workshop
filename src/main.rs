@@ -4,10 +4,10 @@
 #![warn(unused_extern_crates)]
 
 mod chain_spec;
-mod service;
 mod cli;
+mod service;
 
-pub use substrate_cli::{VersionInfo, IntoExit, error};
+pub use substrate_cli::{error, IntoExit, VersionInfo};
 
 fn main() {
 	let version = VersionInfo {

@@ -1,13 +1,12 @@
 use primitives::{ed25519, sr25519, Pair};
 use substrate_service;
 use utxo_runtime::{
-    AccountId,  AuraId as AuthorityId, BalancesConfig,  AuraConfig, GenesisConfig, IndicesConfig, SudoConfig,
-    TimestampConfig, SystemConfig, UtxoConfig
+    AccountId, AuraConfig, AuraId as AuthorityId, BalancesConfig, GenesisConfig, IndicesConfig,
+    SudoConfig, SystemConfig, TimestampConfig, UtxoConfig,
 };
 
 use primitives::H256;
 use utxo_runtime::utxo;
-
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -139,7 +138,6 @@ fn testnet_genesis(
                     salt: 0,
                 }
             ],
-            ..Default::default()
         }),
     }
 }
