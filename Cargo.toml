@@ -74,6 +74,5 @@ git = 'https://github.com/paritytech/substrate.git'
 package = 'substrate-transaction-pool'
 branch = 'master'
 
-
 [build-dependencies]
 vergen = '3'

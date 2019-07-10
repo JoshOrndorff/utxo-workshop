@@ -19,7 +19,7 @@ use substrate_service::{
 };
 use transaction_pool::{self, txpool::Pool as TransactionPool};
 
-use utxo_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi};
+use utxo_runtime::{self, opaque::Block, GenesisConfig, RuntimeApi, WASM_BINARY};
 
 pub use substrate_executor::NativeExecutor;
 // Our native executor instance.
@@ -27,7 +27,7 @@ native_executor_instance!(
     pub Executor,
     utxo_runtime::api::dispatch,
     utxo_runtime::native_version,
-    include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/utxo_runtime_wasm.compact.wasm")
+    WASM_BINARY
 );
 
 #[derive(Default)]
@@ -65,8 +65,8 @@ construct_service_factory! {
                 FullComponents::<Factory>::new(config)
             },
         AuthoritySetup = {
-            |service: Self::FullService, key: Option<Arc<Pair>>| {
-                if let Some(key) = key {
+            |service: Self::FullService| {
+                if let Some(key) = service.authority_key::<Pair>() {
                     info!("Using authority key {}", key.public());
                     let proposer = Arc::new(ProposerFactory {
                         client: service.client(),
@@ -77,7 +77,7 @@ construct_service_factory! {
                         .ok_or_else(|| ServiceError::SelectChainRequired)?;
                     let aura = start_aura(
                         SlotDuration::get_or_compute(&*client)?,
-                        key.clone(),
+                        Arc::new(key),
                         client.clone(),
                         select_chain,
                         client,
@@ -100,7 +100,7 @@ construct_service_factory! {
             { |config: &mut FactoryFullConfiguration<Self> , client: Arc<FullClient<Self>>, _select_chain: Self::SelectChain| {
                     import_queue::<_, _, Pair>(
                         SlotDuration::get_or_compute(&*client)?,
-                        client.clone(),
+                        Box::new(client.clone()),
                         None,
                         None,
                         None,
@@ -115,7 +115,7 @@ construct_service_factory! {
             { |config: &mut FactoryFullConfiguration<Self>, client: Arc<LightClient<Self>>| {
                     import_queue::<_, _, Pair>(
                         SlotDuration::get_or_compute(&*client)?,
-                        client.clone(),
+                        Box::new(client.clone()),
                         None,
                         None,
                         None,

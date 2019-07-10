@@ -5,6 +5,10 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
+// Make the WASM binary available.
+#[cfg(feature = "std")]
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 use client::{
     block_builder::api::{self as block_builder_api, CheckInherentsResult, InherentData},
     impl_runtime_apis, runtime_api,
@@ -111,6 +115,10 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
+parameter_types! {
+    pub const BlockHashCount: BlockNumber = 250;
+}
+
 impl system::Trait for Runtime {
     /// The identifier used to distinguish between accounts.
     type AccountId = AccountId;
@@ -130,6 +138,8 @@ impl system::Trait for Runtime {
     type Event = Event;
     /// The ubiquitous origin type.
     type Origin = Origin;
+    /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
+    type BlockHashCount = BlockHashCount;
 }
 
 impl aura::Trait for Runtime {
