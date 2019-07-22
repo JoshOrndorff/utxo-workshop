@@ -2,7 +2,7 @@ use primitives::{ed25519, sr25519, Pair};
 use substrate_service;
 use utxo_runtime::{
     AccountId, AuraConfig, AuraId as AuthorityId, BalancesConfig, GenesisConfig, IndicesConfig,
-    SudoConfig, SystemConfig, TimestampConfig, UtxoConfig,
+    SudoConfig, SystemConfig, UtxoConfig,
 };
 
 use primitives::H256;
@@ -111,9 +111,6 @@ fn testnet_genesis(
         }),
         aura: Some(AuraConfig {
             authorities: initial_authorities.clone(),
-        }),
-        timestamp: Some(TimestampConfig {
-            minimum_period: 5, // 10 second block time.
         }),
         indices: Some(IndicesConfig {
             ids: endowed_accounts.clone(),

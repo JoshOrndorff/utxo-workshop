@@ -38,7 +38,6 @@ pub use balances::Call as BalancesCall;
 pub use runtime_primitives::BuildStorage;
 pub use runtime_primitives::{Perbill, Permill};
 pub use support::{construct_runtime, parameter_types, StorageValue};
-pub use timestamp::BlockPeriod;
 pub use timestamp::Call as TimestampCall;
 
 /// Alias to the signature scheme used for Aura authority signatures.
@@ -82,7 +81,11 @@ pub mod opaque {
         }
     }
     impl traits::Extrinsic for UncheckedExtrinsic {
+        type Call = ();
         fn is_signed(&self) -> Option<bool> {
+            None
+        }
+        fn new_unsigned(_call: Self::Call) -> Option<Self> {
             None
         }
     }
@@ -136,6 +139,8 @@ impl system::Trait for Runtime {
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
     /// The ubiquitous event type.
     type Event = Event;
+    /// Update weight (to fee) multiplier per-block.
+    type WeightMultiplierUpdate = ();
     /// The ubiquitous origin type.
     type Origin = Origin;
     /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -159,10 +164,14 @@ impl indices::Trait for Runtime {
     type Event = Event;
 }
 
+parameter_types! {
+    pub const MinimumPeriod: u64 = 5;
+}
 impl timestamp::Trait for Runtime {
     /// A timestamp: seconds since the unix epoch.
     type Moment = u64;
     type OnTimestampSet = Aura;
+    type MinimumPeriod = MinimumPeriod;
 }
 
 parameter_types! {
@@ -211,7 +220,7 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: system::{Module, Call, Storage, Config, Event},
-        Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
+        Timestamp: timestamp::{Module, Call, Storage, Inherent},
         Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
         Indices: indices::{default, Config<T>},
         Balances: balances,

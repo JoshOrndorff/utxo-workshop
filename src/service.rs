@@ -7,7 +7,7 @@ use consensus::{import_queue, start_aura, AuraImportQueue, SlotDuration};
 use futures::prelude::*;
 use inherents::InherentDataProviders;
 use log::info;
-use network::construct_simple_protocol;
+use network::{config::DummyFinalityProofRequestBuilder, construct_simple_protocol};
 use primitives::{ed25519::Pair, Pair as PairT};
 use std::sync::Arc;
 use substrate_client::{self as client, LongestChain};
@@ -103,7 +103,6 @@ construct_service_factory! {
                         Box::new(client.clone()),
                         None,
                         None,
-                        None,
                         client,
                         config.custom.inherent_data_providers.clone(),
                     ).map_err(Into::into)
@@ -113,15 +112,15 @@ construct_service_factory! {
             Self::Block,
         >
             { |config: &mut FactoryFullConfiguration<Self>, client: Arc<LightClient<Self>>| {
+                    let fprb = Box::new(DummyFinalityProofRequestBuilder::default()) as Box<_>;
                     import_queue::<_, _, Pair>(
                         SlotDuration::get_or_compute(&*client)?,
                         Box::new(client.clone()),
                         None,
                         None,
-                        None,
                         client,
                         config.custom.inherent_data_providers.clone(),
-                    ).map_err(Into::into)
+                    ).map(|q| (q, fprb)).map_err(Into::into)
                 }
             },
         SelectChain = LongestChain<FullBackend<Self>, Self::Block>
