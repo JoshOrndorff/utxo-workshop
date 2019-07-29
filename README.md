@@ -39,7 +39,7 @@ cargo install --git https://github.com/alexcrichton/wasm-gc
 ### Fork the workshop boilerplate
 
 Fork the workshop to create your own copy of it in your GitHub repository.
-Go https://github.com/nczhu/utxo-workshop/fork and choose your GitHub repository username.
+Go https://github.com/substrate-developer-hub/utxo-workshop/fork and choose your GitHub repository username.
 
 ### Clone your fork of the workshop
 
