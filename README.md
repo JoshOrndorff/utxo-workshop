@@ -1,8 +1,8 @@
 # UTXO on Substrate
 
-A UTXO chain implementation on Substrate. This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE)
+A UTXO chain implementation on Substrate. This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
 
-For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo-Polkadot-UI).
+For a high-level overview of the code, see the [official blog post](https://www.parity.io/utxo-on-substrate/) by Dmitriy. For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo-Polkadot-UI).
 
 ## Project Structure
 
