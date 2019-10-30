@@ -152,59 +152,59 @@ You can try building the following extensions:
 
 2.  Load your type definitions in Settings > Developer
 
-    ```json
-    {
-      "Value": "u128",
-      "LockStatus": "u32",
-      "TransactionInput": {
-        "parent_output": "Hash",
-        "signature": "Signature"
-      },
-      "TransactionOutput": {
-        "value": "Value",
-        "pubkey": "Hash",
-        "salt": "u64"
-      },
-      "Transaction": {
-        "inputs": "Vec<TransactionInput>",
-        "outputs": "Vec<TransactionOutput>"
-      }
-    }
-    ```
+```json
+{
+  "Value": "u128",
+  "LockStatus": "u32",
+  "TransactionInput": {
+    "parent_output": "Hash",
+    "signature": "Signature"
+  },
+  "TransactionOutput": {
+    "value": "Value",
+    "pubkey": "Hash",
+    "salt": "u64"
+  },
+  "Transaction": {
+    "inputs": "Vec<TransactionInput>",
+    "outputs": "Vec<TransactionOutput>"
+  }
+}
+```
 
 3.  Go to "Accounts > Create Account".  Create an account `Alice1` from this seed using `sr25519`:
     `0x9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60`
 
 4.  Check that the genesis block contains 1 pre-configured UTXO for Alice as follows:
 
-    ```rust
-    TransactionOutput {
-      value: Value::max_value(),
-      pubkey: H256::from_slice(&ALICE_KEY),
-      salt: 0,
-    }
-    ```
+```rust
+TransactionOutput {
+  value: Value::max_value(),
+  pubkey: H256::from_slice(&ALICE_KEY),
+  salt: 0,
+}
+```
 
-    Hint: UTXO Hash
-    `0xf414d3dfaf46a7f547f8c3572e5831228fe3795a5f26dd10a1f6ae323993b234`
+Hint: UTXO Hash
+`0xf414d3dfaf46a7f547f8c3572e5831228fe3795a5f26dd10a1f6ae323993b234`
 
 5.  Send a new UTXO transaction from Alice as follows:
 
-    ```rust
-    TransactionOutput {
-      value: 100,
-      pubkey: H256::from_slice(&ALICE_KEY),
-      salt: 2,
-    }],
-    ```
+```rust
+TransactionOutput {
+  value: 100,
+  pubkey: H256::from_slice(&ALICE_KEY),
+  salt: 2,
+}],
+```
 
-    Hint: Encoded Transaction
-    `0x04f414d3dfaf46a7f547f8c3572e5831228fe3795a5f26dd10a1f6ae323993b234dc6dda5055768c30c1134dc83ce55b3c463636899a33c9fc62dbac39018b562fa21532b3c487a71dab55036f2e6e0a19ef98b05272c07db6f013c055e3659400046400000000000000000000000000000044a996beb1eef7bdcab976ab6d2ca26104834164ecf28fb375600576fcc6eb0f0200000000000000`
+Hint: Encoded Transaction
+`0x04f414d3dfaf46a7f547f8c3572e5831228fe3795a5f26dd10a1f6ae323993b234dc6dda5055768c30c1134dc83ce55b3c463636899a33c9fc62dbac39018b562fa21532b3c487a71dab55036f2e6e0a19ef98b05272c07db6f013c055e3659400046400000000000000000000000000000044a996beb1eef7bdcab976ab6d2ca26104834164ecf28fb375600576fcc6eb0f0200000000000000`
 
 6.  Check that the new utxo was generated and the extrinsic succeeded in the block.
 
-    Hint: new UTXO hash
-    `0xd25d4a5cade9f8219cfffffd8474d323a5ba0b2deb5db4a490e1d3b9feb79278`
+Hint: new UTXO hash
+`0xd25d4a5cade9f8219cfffffd8474d323a5ba0b2deb5db4a490e1d3b9feb79278`
 
 ## Helpful Resources
 
