@@ -1,15 +1,22 @@
 use super::Aura;
-use parity_codec::{Decode, Encode};
-use primitives::{H256, H512};
+use codec::{Decode, Encode};
+use primitives::{
+    sr25519::{Public as SRPublic, Signature as SRSignature},
+    H256, H512,
+};
 use rstd::collections::btree_set::BTreeSet;
+use rstd::convert::From;
 use runtime_io::sr25519_verify;
-use runtime_primitives::traits::{BlakeTwo256, Hash, SaturatedConversion};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use sr_primitives::{
+    traits::{BlakeTwo256, Hash, SaturatedConversion},
+    RuntimeDebug,
+};
 use support::{
     decl_event, decl_module, decl_storage,
     dispatch::{Result, Vec},
-    ensure, StorageMap, StorageValue,
+    ensure,
 };
 use system::{ensure_none, ensure_signed};
 
@@ -26,8 +33,8 @@ pub type Value = u128;
 type Signature = H512;
 
 /// Single transaction to be dispatched
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, RuntimeDebug, Encode, Decode, Hash)]
 pub struct Transaction {
     /// UTXOs to be used as inputs for current transaction
     pub inputs: Vec<TransactionInput>,
@@ -132,7 +139,7 @@ decl_module! {
             if !UnspentOutputs::exists(hash) {
                 UnspentOutputs::insert(hash, utxo);
             } else {
-                runtime_io::print("cannot mint due to hash collision");
+                runtime_io::print_utf8(b"cannot mint due to hash collision");
             }
 
             Ok(())
@@ -140,7 +147,10 @@ decl_module! {
 
         /// Handler called by the system on block finalization
         fn on_finalize() {
-            let auth:Vec<_> = Aura::authorities().iter().map(|x| x.0.into() ).collect();
+            let auth: Vec<_> = Aura::authorities().iter().map(|x| {
+                let r: &SRPublic = x.as_ref();
+                r.0.into()
+            }).collect();
             Self::spend_leftover(&auth);
         }
     }
@@ -189,9 +199,9 @@ impl<T: Trait> Module<T> {
 
                 ensure!(
                     sr25519_verify(
-                        input.signature.as_fixed_bytes(),
+                        &SRSignature(input.signature.0),
                         input.parent_output.as_fixed_bytes(),
-                        &parent_output.pubkey
+                        &SRPublic(parent_output.pubkey.0)
                     ),
                     "signature must be valid"
                 );
@@ -261,10 +271,10 @@ impl<T: Trait> Module<T> {
 
             if !UnspentOutputs::exists(hash) {
                 UnspentOutputs::insert(hash, utxo);
-                runtime_io::print("leftover share sent to");
-                runtime_io::print(hash.as_fixed_bytes() as &[u8]);
+                runtime_io::print_utf8(b"leftover share sent to");
+                runtime_io::print_hex(hash.as_fixed_bytes() as &[u8]);
             } else {
-                runtime_io::print("leftover share wasted due to hash collision");
+                runtime_io::print_utf8(b"leftover share wasted due to hash collision");
             }
         }
     }
@@ -320,26 +330,33 @@ impl<T: Trait> Module<T> {
 mod tests {
     use super::*;
 
-    use primitives::{Blake2Hasher, H256};
-    use runtime_io::with_externalities;
-    use runtime_primitives::{
+    use primitives::H256;
+    use sr_primitives::{
         testing::Header,
         traits::{BlakeTwo256, IdentityLookup},
-        BuildStorage,
+        weights::Weight,
+        Perbill,
     };
-    use support::{assert_err, assert_ok, impl_outer_origin, parameter_types};
+    use support::{assert_ok, impl_outer_origin, parameter_types};
 
     impl_outer_origin! {
         pub enum Origin for Test {}
     }
 
+    // For testing the module, we construct most of a mock runtime. This means
+    // first constructing a configuration type (`Test`) which `impl`s each of the
+    // configuration traits of modules we want to use.
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
     parameter_types! {
         pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     }
     impl system::Trait for Test {
         type Origin = Origin;
+        type Call = ();
         type Index = u64;
         type BlockNumber = u64;
         type Hash = H256;
@@ -347,9 +364,12 @@ mod tests {
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
-        type WeightMultiplierUpdate = ();
         type Event = ();
         type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
     }
     impl Trait for Test {
         type Event = ();
@@ -404,12 +424,12 @@ mod tests {
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
-    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
+    fn new_test_ext() -> runtime_io::TestExternalities {
         let mut t = system::GenesisConfig::default()
             .build_storage::<Test>()
-            .unwrap()
-            .0;
-        t.extend(
+            .unwrap();
+
+        t.0.extend(
             GenesisConfig {
                 initial_utxo: vec![alice_utxo().1, alice_utxo_100().1],
                 ..Default::default()
@@ -432,20 +452,21 @@ mod tests {
 
     #[test]
     fn attack_with_empty_transactions() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_err!(
-                Utxo::execute(Origin::NONE, Transaction::default()), // an empty trx
+        new_test_ext().execute_with(|| {
+            assert!(
+                Utxo::execute(Origin::NONE, Transaction::default()).is_err(), // an empty trx
                 "no inputs"
             );
 
-            assert_err!(
+            assert!(
                 Utxo::execute(
                     Origin::NONE,
                     Transaction {
                         inputs: vec![TransactionInput::default()], // an empty trx
                         outputs: vec![],
                     }
-                ),
+                )
+                .is_err(),
                 "no outputs"
             );
         });
@@ -453,7 +474,7 @@ mod tests {
 
     #[test]
     fn attack_by_double_counting_input() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             println!("PARENT HASH: {:x?}: ", parent_hash);
@@ -475,8 +496,8 @@ mod tests {
                 }],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::NONE, transaction),
+            assert!(
+                Utxo::execute(Origin::NONE, transaction).is_err(),
                 "each input must only be used once"
             );
         });
@@ -484,7 +505,7 @@ mod tests {
 
     #[test]
     fn attack_by_double_generating_output() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -507,8 +528,8 @@ mod tests {
                 ],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::NONE, transaction),
+            assert!(
+                Utxo::execute(Origin::NONE, transaction).is_err(),
                 "each output must be defined only once"
             );
         });
@@ -516,7 +537,7 @@ mod tests {
 
     #[test]
     fn attack_with_invalid_signature() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -531,8 +552,8 @@ mod tests {
                 }],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::NONE, transaction),
+            assert!(
+                Utxo::execute(Origin::NONE, transaction).is_err(),
                 "signature must be valid"
             );
         });
@@ -540,7 +561,7 @@ mod tests {
 
     #[test]
     fn attack_by_permanently_sinking_outputs() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -555,8 +576,8 @@ mod tests {
                 }],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::NONE, transaction),
+            assert!(
+                Utxo::execute(Origin::NONE, transaction).is_err(),
                 "output value must be nonzero"
             );
         });
@@ -564,7 +585,7 @@ mod tests {
 
     #[test]
     fn attack_by_overflowing() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -586,8 +607,8 @@ mod tests {
                 ],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::NONE, transaction),
+            assert!(
+                Utxo::execute(Origin::NONE, transaction).is_err(),
                 "output value overflow"
             );
         });
@@ -595,7 +616,7 @@ mod tests {
 
     #[test]
     fn attack_by_over_spending() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo_100();
 
             let transaction = Transaction {
@@ -617,8 +638,8 @@ mod tests {
                 ],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::NONE, transaction),
+            assert!(
+                Utxo::execute(Origin::NONE, transaction).is_err(),
                 "output value must not exceed input value"
             );
         });
@@ -626,7 +647,7 @@ mod tests {
 
     #[test]
     fn valid_transaction() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {

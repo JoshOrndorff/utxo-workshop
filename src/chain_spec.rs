@@ -1,8 +1,11 @@
-use primitives::{ed25519, sr25519, Pair};
+use aura_primitives::sr25519::AuthorityId as AuraId;
+use grandpa_primitives::AuthorityId as GrandpaId;
+use primitives::{sr25519, Pair, Public};
+use sr_primitives::traits::{IdentifyAccount, Verify};
 use substrate_service;
 use utxo_runtime::{
-    AccountId, AuraConfig, AuraId as AuthorityId, BalancesConfig, GenesisConfig, IndicesConfig,
-    SudoConfig, SystemConfig, UtxoConfig,
+    AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, Signature,
+    SudoConfig, SystemConfig, UtxoConfig, WASM_BINARY,
 };
 
 use primitives::H256;
@@ -25,16 +28,26 @@ pub enum Alternative {
     LocalTestnet,
 }
 
-fn authority_key(s: &str) -> AuthorityId {
-    ed25519::Pair::from_string(&format!("//{}", s), None)
+/// Helper function to generate a crypto pair from seed
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+    TPublic::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
 }
 
-fn account_key(s: &str) -> AccountId {
-    sr25519::Pair::from_string(&format!("//{}", s), None)
-        .expect("static values are valid; qed")
-        .public()
+type AccountPublic = <Signature as Verify>::Signer;
+
+/// Helper function to generate an account ID from seed
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+{
+    AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+}
+
+/// Helper function to generate an authority key for Aura
+pub fn get_authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
+    (get_from_seed::<AuraId>(s), get_from_seed::<GrandpaId>(s))
 }
 
 impl Alternative {
@@ -46,9 +59,15 @@ impl Alternative {
                 "dev",
                 || {
                     testnet_genesis(
-                        vec![authority_key("Alice")],
-                        vec![account_key("Alice")],
-                        account_key("Alice"),
+                        vec![get_authority_keys_from_seed("Alice")],
+                        get_account_id_from_seed::<sr25519::Public>("Alice"),
+                        vec![
+                            get_account_id_from_seed::<sr25519::Public>("Alice"),
+                            get_account_id_from_seed::<sr25519::Public>("Bob"),
+                            get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+                            get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+                        ],
+                        true,
                     )
                 },
                 vec![],
@@ -62,16 +81,26 @@ impl Alternative {
                 "local_testnet",
                 || {
                     testnet_genesis(
-                        vec![authority_key("Alice"), authority_key("Bob")],
                         vec![
-                            account_key("Alice"),
-                            account_key("Bob"),
-                            account_key("Charlie"),
-                            account_key("Dave"),
-                            account_key("Eve"),
-                            account_key("Ferdie"),
+                            get_authority_keys_from_seed("Alice"),
+                            get_authority_keys_from_seed("Bob"),
                         ],
-                        account_key("Alice"),
+                        get_account_id_from_seed::<sr25519::Public>("Alice"),
+                        vec![
+                            get_account_id_from_seed::<sr25519::Public>("Alice"),
+                            get_account_id_from_seed::<sr25519::Public>("Bob"),
+                            get_account_id_from_seed::<sr25519::Public>("Charlie"),
+                            get_account_id_from_seed::<sr25519::Public>("Dave"),
+                            get_account_id_from_seed::<sr25519::Public>("Eve"),
+                            get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+                            get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+                            get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+                            get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+                            get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+                            get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+                            get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+                        ],
+                        true,
                     )
                 },
                 vec![],
@@ -98,38 +127,43 @@ const NICOLE: [u8; 32] = [
 ];
 
 fn testnet_genesis(
-    initial_authorities: Vec<AuthorityId>,
-    endowed_accounts: Vec<AccountId>,
+    initial_authorities: Vec<(AuraId, GrandpaId)>,
     root_key: AccountId,
+    endowed_accounts: Vec<AccountId>,
+    _enable_println: bool,
 ) -> GenesisConfig {
     GenesisConfig {
         system: Some(SystemConfig {
-            code: include_bytes!(
-                "../runtime/wasm/target/wasm32-unknown-unknown/release/utxo_runtime_wasm.compact.wasm"
-                ).to_vec(),
+            code: WASM_BINARY.to_vec(),
             changes_trie_config: Default::default(),
         }),
         aura: Some(AuraConfig {
-            authorities: initial_authorities.clone(),
+            authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
         }),
         indices: Some(IndicesConfig {
             ids: endowed_accounts.clone(),
         }),
         balances: Some(BalancesConfig {
-            balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
+            balances: endowed_accounts
+                .iter()
+                .cloned()
+                .map(|k| (k, 1 << 60))
+                .collect(),
             vesting: vec![],
         }),
-        sudo: Some(SudoConfig {
-            key: root_key,
-        }),
+        sudo: Some(SudoConfig { key: root_key }),
         utxo: Some(UtxoConfig {
-            initial_utxo: vec![
-                utxo::TransactionOutput {
-                    value: utxo::Value::max_value(),
-                    pubkey: H256::from_slice(&NICOLE),
-                    salt: 0,
-                }
-            ],
+            initial_utxo: vec![utxo::TransactionOutput {
+                value: utxo::Value::max_value(),
+                pubkey: H256::from_slice(&NICOLE),
+                salt: 0,
+            }],
+        }),
+        grandpa: Some(GrandpaConfig {
+            authorities: initial_authorities
+                .iter()
+                .map(|x| (x.1.clone(), 1))
+                .collect(),
         }),
     }
 }
