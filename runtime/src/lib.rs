@@ -333,63 +333,8 @@ impl_runtime_apis! {
                 transaction_validity::{TransactionLongevity, TransactionPriority},
             };
 
-            if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
-                // List of tags to require
-                let requires;
-
-                // Transaction priority to assign
-                let priority : TransactionPriority;
-
-                const INVALID_UTXO: u8 = 99;
-
-                match <utxo::Module<Runtime>>::check_transaction(&transaction) {
-                    // Transaction verification failed
-                    Err(e) => {
-                        runtime_io::print_utf8(e.as_bytes());
-                        return Err(TransactionValidityError::Invalid(
-                            InvalidTransaction::Custom(INVALID_UTXO)
-                        ));
-                    }
-
-                    // Transaction is valid and verified
-                    Ok(utxo::CheckInfo::Totals {input, output}) => {
-                        // All input UTXOs were found, so we consider input conditions to be met
-                        requires = Vec::new();
-
-                        // Priority is based on a transaction fee that is equal to the leftover value
-                        let max_priority = utxo::Value::from(TransactionPriority::max_value());
-                        priority = max_priority.min(input - output) as TransactionPriority;
-                    }
-
-                    // Transaction is missing inputs
-                    Ok(utxo::CheckInfo::MissingInputs(missing)) => {
-                        // Since some referred UTXOs were not found in the storage yet,
-                        // we tag current transaction as requiring those particular UTXOs
-                        requires = missing
-                            .iter()         // copies itself into a new vec
-                            .map(|hash| hash.as_fixed_bytes().to_vec())
-                            .collect();
-
-                        // Transaction could not be validated at this point,
-                        // so we have no sane way to calculate the priority
-                        priority = 0;
-                    }
-                }
-
-                // Output tags this transaction provides
-                let provides = transaction.outputs
-                    .iter()
-                    .map(|output| BlakeTwo256::hash_of(output).as_fixed_bytes().to_vec())
-                    .collect();
-
-                return Ok(ValidTransaction{
-                    requires,
-                    provides,
-                    priority,
-                    longevity: TransactionLongevity::max_value(),
-                    propagate: true
-                   }
-                );
+            if let Some(&utxo::Call::execute(ref _transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
+                // TODO
             }
 
             // Fall back to default logic for non UTXO::execute extrinsics
