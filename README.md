@@ -4,10 +4,12 @@ A UTXO chain implementation on Substrate. This repo is an updated implementation
 
 For a high-level overview of the code, see the [official blog post](https://www.parity.io/utxo-on-substrate/) by Dmitriy. For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo-Polkadot-UI).
 
+_Caveat: this implementation is being security reviewed and has outstanding issues. Do not use this implementation in production. It is for educational purposes only!_
+
 ## Project Structure
 
 -   `master` branch contains the full solution (cheats).
--   `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walks you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
+-   `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walk you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
 
 ## Workshop
 
@@ -80,30 +82,30 @@ _Make sure you have created a local copy of the remote `workshop` branch_
 
 2.  Notice that 7/8 tests are failing!
 
-    ```zsh
-    failures:
-        utxo::tests::attack_by_double_counting_input
-        utxo::tests::attack_by_double_generating_output
-        utxo::tests::attack_by_over_spending
-        utxo::tests::attack_by_overflowing
-        utxo::tests::attack_by_permanently_sinking_outputs
-        utxo::tests::attack_with_empty_transactions
-        utxo::tests::attack_with_invalid_signature
-    ```
+```zsh
+failures:
+    utxo::tests::attack_by_double_counting_input
+    utxo::tests::attack_by_double_generating_output
+    utxo::tests::attack_by_over_spending
+    utxo::tests::attack_by_overflowing
+    utxo::tests::attack_by_permanently_sinking_outputs
+    utxo::tests::attack_with_empty_transactions
+    utxo::tests::attack_with_invalid_signature
+```
 
 3.  In `utxo.rs`, extend `check_transaction()` to make the following tests pass.
 
-    _Hint: You may want to make them pass in the following order!_
+_Hint: You may want to make them pass in the following order!_
 
-    ```zsh
-    [0] test utxo::tests::attack_with_empty_transactions ... ok
-    [1] test utxo::tests::attack_by_double_counting_input ... ok
-    [2] test utxo::tests::attack_by_double_generating_output ... ok
-    [3] test utxo::tests::attack_with_invalid_signature ... ok
-    [4] test utxo::tests::attack_by_permanently_sinking_outputs ... ok
-    [5] test utxo::tests::attack_by_overflowing ... ok
-    [6] test utxo::tests::attack_by_over_spending ... ok
-    ```
+```zsh
+[0] test utxo::tests::attack_with_empty_transactions ... ok
+[1] test utxo::tests::attack_by_double_counting_input ... ok
+[2] test utxo::tests::attack_by_double_generating_output ... ok
+[3] test utxo::tests::attack_with_invalid_signature ... ok
+[4] test utxo::tests::attack_by_permanently_sinking_outputs ... ok
+[5] test utxo::tests::attack_by_overflowing ... ok
+[6] test utxo::tests::attack_by_over_spending ... ok
+```
 
 ## Challenge 2: Transaction Ordering
 
@@ -118,8 +120,7 @@ A naive solution is to simply drop transaction B. But Substrate lets you impleme
 In Substrate, you can specify the requirements for dispatching a transaction, e.g. wait for transaction A to arrive before dispatching B.
 
 Directions:
-
-1.  Read about a [transaction lifecycle](https://docs.substrate.dev/docs/transaction-lifecycle-in-substrate) in Substrate
+1\. Read about a [transaction lifecycle](https://docs.substrate.dev/docs/transaction-lifecycle-in-substrate) in Substrate
 
 2.  Read about [TaggedTransactionQueue](https://crates.parity.io/substrate_client/runtime_api/trait.TaggedTransactionQueue.html?search=) and [TransactionValidity](https://crates.parity.io/sr_primitives/transaction_validity/enum.TransactionValidity.html)
 
