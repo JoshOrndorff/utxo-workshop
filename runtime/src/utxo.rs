@@ -1,18 +1,17 @@
-// Original Author: @0x7CFE
-use support::{
+use super::Aura;
+use codec::{Decode, Encode};
+use frame_support::{
     decl_event, decl_module, decl_storage,
-    dispatch::{Result, Vec},
-    ensure, StorageMap, StorageValue,
+    dispatch::{DispatchError, DispatchResult, Vec},
+    ensure,
 };
-use primitives::{H256, H512};
-use rstd::collections::btree_map::BTreeMap;
-use runtime_primitives::traits::{As, BlakeTwo256, Hash};
-use system::{ensure_inherent, ensure_signed};
-use super::Consensus;
-use parity_codec::{Decode, Encode};
-use runtime_io::sr25519_verify;
+use primitive_types::{H256, H512};
 #[cfg(feature = "std")]
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
+use sp_core::sr25519::{Public, Signature as SR25519Signature};
+use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
+use sp_std::collections::btree_map::BTreeMap;
+use system::ensure_signed;
 
 pub trait Trait: system::Trait {
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
@@ -25,8 +24,8 @@ pub type Value = u128;
 type Signature = H512;
 
 /// Single transaction to be dispatched
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash, Debug)]
 pub struct Transaction {
     /// UTXOs to be used as inputs for current transaction
     pub inputs: Vec<TransactionInput>,
@@ -36,8 +35,8 @@ pub struct Transaction {
 }
 
 /// Single transaction input that refers to one UTXO
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash, Debug)]
 pub struct TransactionInput {
     /// Reference to an UTXO to be spent
     pub parent_output: H256,
@@ -47,8 +46,8 @@ pub struct TransactionInput {
 }
 
 /// Single transaction output to create upon transaction dispatch
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash, Debug)]
 pub struct TransactionOutput {
     /// Value associated with this output
     pub value: Value,
@@ -76,7 +75,7 @@ decl_storage! {
     trait Store for Module<T: Trait> as Utxo {
         /// All valid unspent transaction outputs are stored in this map.
         /// Initial set of UTXO is populated from the list stored in genesis.
-        UnspentOutputs build(|config: &GenesisConfig<T>| {
+        UnspentOutputs build(|config: &GenesisConfig| {
             config.initial_utxo
                 .iter()
                 .cloned()
@@ -104,13 +103,13 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Dispatch a single transaction and update UTXO set accordingly
-        pub fn execute(origin, transaction: Transaction) -> Result {
-            ensure_inherent(origin)?;
+        pub fn execute(origin, transaction: Transaction) -> DispatchResult {
+            ensure_signed(origin)?;
 
             // Verify the transaction
             let leftover = match Self::check_transaction(&transaction)? {
                 CheckInfo::Totals{input, output} => input - output,
-                CheckInfo::MissingInputs(_) => return Err("Invalid transaction inputs")
+                CheckInfo::MissingInputs(_) => return Err(DispatchError::Other("Invalid transaction inputs"))
             };
 
             // Update unspent outputs
@@ -124,16 +123,16 @@ decl_module! {
 
         /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
         /// Does not perform enough checks. Must only be used for testing purposes.
-        pub fn mint(origin, value: Value, pubkey: H256) -> Result {
+        pub fn mint(origin, value: Value, pubkey: H256) -> DispatchResult {
             ensure_signed(origin)?;
-            let salt:u64 = <system::Module<T>>::block_number().as_();
+            let salt:u64 = <system::Module<T>>::block_number().saturated_into::<u64>();
             let utxo = TransactionOutput { value, pubkey, salt };
             let hash = BlakeTwo256::hash_of(&utxo);
 
-            if !<UnspentOutputs<T>>::exists(hash) {
-                <UnspentOutputs<T>>::insert(hash, utxo);
+            if !<UnspentOutputs>::exists(hash) {
+                <UnspentOutputs>::insert(hash, utxo);
             } else {
-                runtime_io::print("cannot mint due to hash collision");
+                sp_runtime::print("cannot mint due to hash collision");
             }
 
             Ok(())
@@ -141,7 +140,10 @@ decl_module! {
 
         /// Handler called by the system on block finalization
         fn on_finalize() {
-            let auth:Vec<_> = Consensus::authorities().iter().map(|x| x.0.into() ).collect();
+            let auth:Vec<_> = Aura::authorities().iter().map(|x| {
+                let r: &Public = x.as_ref();
+                r.0.into()
+            }).collect();
             Self::spend_leftover(&auth);
         }
     }
@@ -164,7 +166,7 @@ pub enum CheckInfo<'a> {
 }
 
 /// Result of transaction verification
-pub type CheckResult<'a> = rstd::result::Result<CheckInfo<'a>, &'static str>;
+pub type CheckResult<'a> = Result<CheckInfo<'a>, &'static str>;
 
 impl<T: Trait> Module<T> {
     /// Check transaction for validity.
@@ -178,38 +180,38 @@ impl<T: Trait> Module<T> {
     /// - new outputs do not collide with existing ones
     /// - sum of input and output values does not overflow
     /// - provided signatures are valid
-    pub fn check_transaction(transaction: &Transaction) -> CheckResult<'_> {
-        ensure!(!transaction.inputs.is_empty(), "no inputs");
-        ensure!(!transaction.outputs.is_empty(), "no outputs");
+    pub fn check_transaction(_transaction: &Transaction) -> CheckResult<'_> {
+        ensure!(!_transaction.inputs.is_empty(), "no inputs");
+        ensure!(!_transaction.outputs.is_empty(), "no outputs");
 
         {
             let input_set: BTreeMap<_, ()> =
-                transaction.inputs.iter().map(|input| (input, ())).collect();
+                _transaction.inputs.iter().map(|input| (input, ())).collect();
 
             ensure!(
-                input_set.len() == transaction.inputs.len(),
+                input_set.len() == _transaction.inputs.len(),
                 "each input must only be used once"
             );
         }
 
         {
-            let output_set: BTreeMap<_, ()> = transaction
+            let output_set: BTreeMap<_, ()> = _transaction
                 .outputs
                 .iter()
                 .map(|output| (output, ()))
                 .collect();
 
             ensure!(
-                output_set.len() == transaction.outputs.len(),
+                output_set.len() == _transaction.outputs.len(),
                 "each output must be defined only once"
             );
         }
 
         let mut total_input: Value = 0;
         let mut missing_utxo = Vec::new();
-        for input in transaction.inputs.iter() {
+        for input in _transaction.inputs.iter() {
             // Fetch UTXO from the storage
-            if let Some(output) = <UnspentOutputs<T>>::get(&input.parent_output) {
+            if let Some(output) = <UnspentOutputs>::get(&input.parent_output) {
                 ensure!(
                     !<LockedOutputs<T>>::exists(&input.parent_output),
                     "utxo is locked"
@@ -217,10 +219,10 @@ impl<T: Trait> Module<T> {
 
                 // Check uxto signature authorization
                 ensure!(
-                    sr25519_verify(
-                        input.signature.as_fixed_bytes(),
+                    sp_io::crypto::sr25519_verify(
+                        &SR25519Signature::from_raw(*input.signature.as_fixed_bytes()),
                         input.parent_output.as_fixed_bytes(),
-                        &output.pubkey
+                        &Public::from_h256(output.pubkey)
                     ),
                     "signature must be valid"
                 );
@@ -233,11 +235,11 @@ impl<T: Trait> Module<T> {
         }
 
         let mut total_output: Value = 0;
-        for output in transaction.outputs.iter() {
+        for output in _transaction.outputs.iter() {
             ensure!(output.value != 0, "output value must be nonzero");
 
             let hash = BlakeTwo256::hash_of(output);
-            ensure!(!<UnspentOutputs<T>>::exists(hash), "output already exists");
+            ensure!(!<UnspentOutputs>::exists(hash), "output already exists");
 
             total_output = total_output
                 .checked_add(output.value)
@@ -260,7 +262,7 @@ impl<T: Trait> Module<T> {
 	
     /// Redistribute combined leftover value evenly among chain authorities
     fn spend_leftover(authorities: &[H256]) {
-        let leftover = <LeftoverTotal<T>>::take();
+        let leftover = <LeftoverTotal>::take();
         let share_value: Value = leftover
             .checked_div(authorities.len() as Value)
             .ok_or("No authorities")
@@ -271,52 +273,52 @@ impl<T: Trait> Module<T> {
             .checked_sub(share_value * authorities.len() as Value)
             .ok_or("Sub underflow")
             .unwrap();
-        <LeftoverTotal<T>>::put(remainder as Value);
+        <LeftoverTotal>::put(remainder as Value);
 
         for authority in authorities {
             let utxo = TransactionOutput {
                 value: share_value,
                 pubkey: *authority,
-                salt: <system::Module<T>>::block_number().as_(),
+                salt: <system::Module<T>>::block_number().saturated_into::<u64>(),
             };
 
             let hash = BlakeTwo256::hash_of(&utxo);
 
-            if !<UnspentOutputs<T>>::exists(hash) {
-                <UnspentOutputs<T>>::insert(hash, utxo);
-                runtime_io::print("leftover share sent to");
-                runtime_io::print(hash.as_fixed_bytes() as &[u8]);
+            if !<UnspentOutputs>::exists(hash) {
+                <UnspentOutputs>::insert(hash, utxo);
+                sp_runtime::print("leftover share sent to");
+                sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
             } else {
-                runtime_io::print("leftover share wasted due to hash collision");
+                sp_runtime::print("leftover share wasted due to hash collision");
             }
         }
     }
 
     /// Update storage to reflect changes made by transaction
-    fn update_storage(transaction: &Transaction, leftover: Value) -> Result {
+    fn update_storage(transaction: &Transaction, leftover: Value) -> DispatchResult {
         // Calculate new leftover total
-        let new_total = <LeftoverTotal<T>>::get()
+        let new_total = <LeftoverTotal>::get()
             .checked_add(leftover)
             .ok_or("Leftover overflow")?;
-        <LeftoverTotal<T>>::put(new_total);
+        <LeftoverTotal>::put(new_total);
 
         // Storing updated leftover value
         for input in &transaction.inputs {
-            <UnspentOutputs<T>>::remove(input.parent_output);
+            <UnspentOutputs>::remove(input.parent_output);
         }
 
         // Add new UTXO to be used by future transactions
         for output in &transaction.outputs {
             let hash = BlakeTwo256::hash_of(output);
-            <UnspentOutputs<T>>::insert(hash, output);
+            <UnspentOutputs>::insert(hash, output);
         }
 
         Ok(())
     }
 
-    pub fn lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> Result {
+    pub fn lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> DispatchResult {
         ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
-        ensure!(<UnspentOutputs<T>>::exists(hash), "utxo does not exist");
+        ensure!(<UnspentOutputs>::exists(hash), "utxo does not exist");
 
         if let Some(until) = until {
             ensure!(
@@ -331,7 +333,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    pub fn unlock_utxo(hash: &H256) -> Result {
+    pub fn unlock_utxo(hash: &H256) -> DispatchResult {
         ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
         <LockedOutputs<T>>::remove(hash);
         Ok(())
@@ -343,14 +345,9 @@ impl<T: Trait> Module<T> {
 mod tests {
     use super::*;
 
-    use primitives::{Blake2Hasher, H256};
-    use runtime_io::with_externalities;
-    use runtime_primitives::{
-        testing::{Digest, DigestItem, Header},
-        traits::{BlakeTwo256, IdentityLookup},
-        BuildStorage,
-    };
-    use support::{assert_err, assert_ok, impl_outer_origin};
+    use frame_support::{assert_ok, impl_outer_origin, parameter_types, weights::Weight};
+    use primitive_types::H256;
+    use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
 
     impl_outer_origin! {
         pub enum Origin for Test {}
@@ -358,18 +355,29 @@ mod tests {
 
     #[derive(Clone, Eq, PartialEq)]
     pub struct Test;
+    parameter_types! {
+            pub const BlockHashCount: u64 = 250;
+            pub const MaximumBlockWeight: Weight = 1024;
+            pub const MaximumBlockLength: u32 = 2 * 1024;
+            pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    }
     impl system::Trait for Test {
         type Origin = Origin;
+        type Call = ();
         type Index = u64;
         type BlockNumber = u64;
         type Hash = H256;
         type Hashing = BlakeTwo256;
-        type Digest = Digest;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = ();
-        type Log = DigestItem;
+        type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
+        type ModuleToIndex = ();
     }
     impl Trait for Test {
         type Event = ();
@@ -411,19 +419,19 @@ mod tests {
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
-    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        let mut t = system::GenesisConfig::<Test>::default()
-            .build_storage()
-            .unwrap()
-            .0;
-        t.extend(
-            GenesisConfig::<Test> {
+    fn new_test_ext() -> sp_io::TestExternalities {
+        let mut t = system::GenesisConfig::default()
+            .build_storage::<Test>()
+            .unwrap();
+
+        t.top.extend(
+            GenesisConfig {
                 initial_utxo: vec![alice_utxo().1, alice_utxo_100().1],
                 ..Default::default()
             }
             .build_storage()
             .unwrap()
-            .0,
+            .top,
         );
         t.into()
     }
@@ -439,20 +447,21 @@ mod tests {
 
     #[test]
     fn attack_with_empty_transactions() {
-        with_externalities(&mut new_test_ext(), || {
-            assert_err!(
-                Utxo::execute(Origin::INHERENT, Transaction::default()), // an empty trx
+        new_test_ext().execute_with(|| {
+            assert!(
+                Utxo::execute(Origin::signed(0), Transaction::default()).is_err(), // an empty trx
                 "no inputs"
             );
 
-            assert_err!(
+            assert!(
                 Utxo::execute(
-                    Origin::INHERENT,
+                    Origin::signed(0),
                     Transaction {
                         inputs: vec![TransactionInput::default()], // an empty trx
                         outputs: vec![],
                     }
-                ),
+                )
+                .is_err(),
                 "no outputs"
             );
         });
@@ -460,7 +469,7 @@ mod tests {
 
     #[test]
     fn attack_by_double_counting_input() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             println!("PARENT HASH: {:x?}: ", parent_hash);
@@ -482,8 +491,8 @@ mod tests {
                 }],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::INHERENT, transaction),
+            assert!(
+                Utxo::execute(Origin::signed(0), transaction).is_err(),
                 "each input must only be used once"
             );
         });
@@ -491,7 +500,7 @@ mod tests {
 
     #[test]
     fn attack_by_double_generating_output() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -514,8 +523,8 @@ mod tests {
                 ],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::INHERENT, transaction),
+            assert!(
+                Utxo::execute(Origin::signed(0), transaction).is_err(),
                 "each output must be defined only once"
             );
         });
@@ -523,7 +532,7 @@ mod tests {
 
     #[test]
     fn attack_with_invalid_signature() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -538,8 +547,8 @@ mod tests {
                 }],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::INHERENT, transaction),
+            assert!(
+                Utxo::execute(Origin::signed(0), transaction).is_err(),
                 "signature must be valid"
             );
         });
@@ -547,7 +556,7 @@ mod tests {
 
     #[test]
     fn attack_by_permanently_sinking_outputs() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -562,8 +571,8 @@ mod tests {
                 }],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::INHERENT, transaction),
+            assert!(
+                Utxo::execute(Origin::signed(0), transaction).is_err(),
                 "output value must be nonzero"
             );
         });
@@ -571,7 +580,7 @@ mod tests {
 
     #[test]
     fn attack_by_overflowing() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -593,8 +602,8 @@ mod tests {
                 ],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::INHERENT, transaction),
+            assert!(
+                Utxo::execute(Origin::signed(0), transaction).is_err(),
                 "output value overflow"
             );
         });
@@ -602,7 +611,7 @@ mod tests {
 
     #[test]
     fn attack_by_over_spending() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo_100();
 
             let transaction = Transaction {
@@ -624,8 +633,8 @@ mod tests {
                 ],
             };
 
-            assert_err!(
-                Utxo::execute(Origin::INHERENT, transaction),
+            assert!(
+                Utxo::execute(Origin::signed(0), transaction).is_err(),
                 "output value must not exceed input value"
             );
         });
@@ -633,7 +642,7 @@ mod tests {
     
     #[test]
     fn valid_transaction() {
-        with_externalities(&mut new_test_ext(), || {
+        new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
             let transaction = Transaction {
@@ -650,9 +659,9 @@ mod tests {
             
             let output_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
 
-            assert_ok!(Utxo::execute(Origin::INHERENT, transaction));
-            assert!(!<UnspentOutputs<Test>>::exists(parent_hash));
-            assert!(<UnspentOutputs<Test>>::exists(output_hash));
+            assert_ok!(Utxo::execute(Origin::signed(0), transaction));
+            assert!(!UnspentOutputs::exists(parent_hash));
+            assert!(UnspentOutputs::exists(output_hash));
         });
     }
 }
