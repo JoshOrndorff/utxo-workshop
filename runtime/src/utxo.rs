@@ -8,9 +8,8 @@ use frame_support::{
 use primitive_types::{H256, H512};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::sr25519::{Public, Signature as SR25519Signature};
+use sp_core::sr25519::Public;
 use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
-use sp_std::collections::btree_map::BTreeMap;
 use system::ensure_signed;
 
 pub trait Trait: system::Trait {
@@ -181,83 +180,11 @@ impl<T: Trait> Module<T> {
     /// - sum of input and output values does not overflow
     /// - provided signatures are valid
     pub fn check_transaction(_transaction: &Transaction) -> CheckResult<'_> {
-        ensure!(!_transaction.inputs.is_empty(), "no inputs");
-        ensure!(!_transaction.outputs.is_empty(), "no outputs");
-
-        {
-            let input_set: BTreeMap<_, ()> =
-                _transaction.inputs.iter().map(|input| (input, ())).collect();
-
-            ensure!(
-                input_set.len() == _transaction.inputs.len(),
-                "each input must only be used once"
-            );
-        }
-
-        {
-            let output_set: BTreeMap<_, ()> = _transaction
-                .outputs
-                .iter()
-                .map(|output| (output, ()))
-                .collect();
-
-            ensure!(
-                output_set.len() == _transaction.outputs.len(),
-                "each output must be defined only once"
-            );
-        }
-
-        let mut total_input: Value = 0;
-        let mut missing_utxo = Vec::new();
-        for input in _transaction.inputs.iter() {
-            // Fetch UTXO from the storage
-            if let Some(output) = <UnspentOutputs>::get(&input.parent_output) {
-                ensure!(
-                    !<LockedOutputs<T>>::exists(&input.parent_output),
-                    "utxo is locked"
-                );
-
-                // Check uxto signature authorization
-                ensure!(
-                    sp_io::crypto::sr25519_verify(
-                        &SR25519Signature::from_raw(*input.signature.as_fixed_bytes()),
-                        input.parent_output.as_fixed_bytes(),
-                        &Public::from_h256(output.pubkey)
-                    ),
-                    "signature must be valid"
-                );
-
-                // Add the value to the input total
-                total_input = total_input.checked_add(output.value).ok_or("input value overflow")?;
-            } else {
-                missing_utxo.push(&input.parent_output);
-            }
-        }
-
-        let mut total_output: Value = 0;
-        for output in _transaction.outputs.iter() {
-            ensure!(output.value != 0, "output value must be nonzero");
-
-            let hash = BlakeTwo256::hash_of(output);
-            ensure!(!<UnspentOutputs>::exists(hash), "output already exists");
-
-            total_output = total_output
-                .checked_add(output.value)
-                .ok_or("output value overflow")?;
-        }
-
-        if missing_utxo.is_empty() {
-            ensure!(
-                total_input >= total_output,
-                "output value must not exceed input value"
-            );
-            Ok(CheckInfo::Totals {
-                input: total_input,
-                output: total_output,
-            })
-        } else {
-            Ok(CheckInfo::MissingInputs(missing_utxo))
-        }
+        // TODO
+        Ok(CheckInfo::Totals {
+            input: 0,
+            output: 0,
+        })
     }
 
     /// Redistribute combined leftover value evenly among chain authorities

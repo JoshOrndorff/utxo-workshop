@@ -24,7 +24,7 @@ Over this course of this workshop, you will learn:
 - How to customize transaction pool logic on Substrate
 - Good coding patterns for working with Substrate & Rust
 
-> Note: This branch contains all the answers. Try not to peek!
+> Note: The `master` branch contains all the answers. Try not to peek!
 
 ### 1. Install | Upgrade Rust
 ```zsh
