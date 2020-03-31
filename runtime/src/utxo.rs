@@ -21,7 +21,7 @@ pub trait Trait: system::Trait {
 pub type Value = u128;
 
 /// Representation of UTXO value
-type Signature = H512;
+type Signature = H512; //TODO can this be taken out...
 
 /// Single transaction to be dispatched
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -109,6 +109,7 @@ decl_module! {
             // Verify the transaction
             let leftover = match Self::check_transaction(&transaction)? {
                 CheckInfo::Totals{input, output} => input - output,
+                // This line will actually never get called on, unless we change the missingInputs longevity threshold
                 CheckInfo::MissingInputs(_) => return Err(DispatchError::Other("Invalid transaction inputs"))
             };
 
@@ -157,15 +158,18 @@ decl_event!(
 );
 
 /// Information collected during transaction verification
+/// Rename enum: transaction_status
 pub enum CheckInfo<'a> {
     /// Combined value of all inputs and outputs
-    Totals { input: Value, output: Value },
+    Totals { input: Value, output: Value }, // valid
 
-    /// Some referred UTXOs were missing
-    MissingInputs(Vec<&'a H256>),
+    /// Race condition: some UTXO inputs were missing, populate requires/provides lists.
+    /// Trx hashes are used by transaction pool as tags for ordering
+    MissingInputs(Vec<&'a H256>), // pending
 }
 
 /// Result of transaction verification
+/// TODO fix this, CheckInfo is used wrongly here... maybe no need for this datatype.
 pub type CheckResult<'a> = Result<CheckInfo<'a>, &'static str>;
 
 impl<T: Trait> Module<T> {
@@ -181,7 +185,7 @@ impl<T: Trait> Module<T> {
     /// - sum of input and output values does not overflow
     /// - provided signatures are valid
     pub fn check_transaction(_transaction: &Transaction) -> CheckResult<'_> {
-        ensure!(!_transaction.inputs.is_empty(), "no inputs");
+        ensure!(!_transaction.inputs.is_empty(), "no inputs"); // returns Err(...) if incorrect
         ensure!(!_transaction.outputs.is_empty(), "no outputs");
 
         {
@@ -208,6 +212,7 @@ impl<T: Trait> Module<T> {
         }
 
         let mut total_input: Value = 0;
+        // vector of utxo IDs that users submitted, that doesn't even exist in the first place.
         let mut missing_utxo = Vec::new();
         for input in _transaction.inputs.iter() {
             // Fetch UTXO from the storage
@@ -316,28 +321,28 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    pub fn lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> DispatchResult {
-        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
-        ensure!(<UnspentOutputs>::exists(hash), "utxo does not exist");
+    // pub fn lock_utxo(hash: &H256, until: Option<T::BlockNumber>) -> DispatchResult {
+    //     ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is already locked");
+    //     ensure!(<UnspentOutputs>::exists(hash), "utxo does not exist");
 
-        if let Some(until) = until {
-            ensure!(
-                until > <system::Module<T>>::block_number(),
-                "block number is in the past"
-            );
-            <LockedOutputs<T>>::insert(hash, LockStatus::LockedUntil(until));
-        } else {
-            <LockedOutputs<T>>::insert(hash, LockStatus::Locked);
-        }
+    //     if let Some(until) = until {
+    //         ensure!(
+    //             until > <system::Module<T>>::block_number(),
+    //             "block number is in the past"
+    //         );
+    //         <LockedOutputs<T>>::insert(hash, LockStatus::LockedUntil(until));
+    //     } else {
+    //         <LockedOutputs<T>>::insert(hash, LockStatus::Locked);
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    pub fn unlock_utxo(hash: &H256) -> DispatchResult {
-        ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
-        <LockedOutputs<T>>::remove(hash);
-        Ok(())
-    }
+    // pub fn unlock_utxo(hash: &H256) -> DispatchResult {
+    //     ensure!(!<LockedOutputs<T>>::exists(hash), "utxo is not locked");
+    //     <LockedOutputs<T>>::remove(hash);
+    //     Ok(())
+    // }
 }
 
 /// Tests for this module
@@ -348,6 +353,9 @@ mod tests {
     use frame_support::{assert_ok, impl_outer_origin, parameter_types, weights::Weight};
     use primitive_types::H256;
     use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
+    // SR25519: keytypeid used to generate sr25519 keys, 
+    // KeyStore needed to store keys...
+    use sp_core::testing::{KeyStore, SR25519};
 
     impl_outer_origin! {
         pub enum Origin for Test {}
@@ -397,6 +405,7 @@ mod tests {
 
     // Creates a max value UTXO for Alice
     fn alice_utxo() -> (H256, TransactionOutput) {
+
         let transaction = TransactionOutput {
             value: Value::max_value(),
             pubkey: H256::from_slice(&ALICE_KEY),
@@ -417,8 +426,9 @@ mod tests {
         (BlakeTwo256::hash_of(&transaction), transaction)
     }
 
-    // This function basically just builds a genesis storage key/value store according to
-    // our desired mockup.
+    // TEST SETUP: 
+    // This function basically just builds a genesis storage key/value store according to our desired mockup.
+    // Alice: 
     fn new_test_ext() -> sp_io::TestExternalities {
         let mut t = system::GenesisConfig::default()
             .build_storage::<Test>()
@@ -448,6 +458,12 @@ mod tests {
     #[test]
     fn attack_with_empty_transactions() {
         new_test_ext().execute_with(|| {
+            let keystore = KeyStore::new();
+            let public = keystore.write().sr25519_generate_new(SR25519, None).unwrap();
+
+            print!("ALICE Public KEY {:?}", public);
+
+ 
             assert!(
                 Utxo::execute(Origin::signed(0), Transaction::default()).is_err(), // an empty trx
                 "no inputs"
@@ -472,7 +488,7 @@ mod tests {
         new_test_ext().execute_with(|| {
             let (parent_hash, _) = alice_utxo();
 
-            println!("PARENT HASH: {:x?}: ", parent_hash);
+            // println!("PARENT HASH: {:x?}: ", parent_hash);
             let transaction = Transaction {
                 inputs: vec![
                     TransactionInput {

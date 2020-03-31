@@ -335,6 +335,8 @@ impl_runtime_apis! {
         }
     }
 
+    // Documentation is here: 
+    // https://substrate.dev/rustdocs/master/sp_transaction_pool/runtime_api/trait.TaggedTransactionQueue.html#method.validate_transaction
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             use sp_runtime::traits::Hash;
@@ -389,12 +391,13 @@ impl_runtime_apis! {
                     requires,
                     provides,
                     priority,
-                    longevity: TransactionLongevity::max_value(),
+                    longevity: TransactionLongevity::max_value(), // "Forever" This value can be changed so that missinginputs trx can eventually be rejected.
                     propagate: true,
                 });
             }
 
             // Fall back to default logic for non UTXO::execute extrinsics
+            // TODO find out when validate_transaction is run
             Executive::validate_transaction(tx)
         }
     }
