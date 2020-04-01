@@ -4,6 +4,9 @@ edition = '2018'
 name = 'utxo-runtime'
 version = '2.0.0'
 
+[dependencies]
+hex-literal = "0.2.1"
+
 [build-dependencies.wasm-builder-runner]
 git = 'https://github.com/paritytech/substrate.git'
 package = 'substrate-wasm-builder-runner'
