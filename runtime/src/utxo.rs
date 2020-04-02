@@ -63,14 +63,6 @@ pub struct TransactionOutput {
     pub salt: u64,
 }
 
-/// A UTXO can be locked indefinitely or until a certain block height
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Encode, Decode, Hash)]
-pub enum LockStatus<BlockNumber> {
-    Locked,
-    LockedUntil(BlockNumber),
-}
-
 decl_storage! {
     trait Store for Module<T: Trait> as Utxo {
         /// All valid unspent transaction outputs are stored in this map.
@@ -89,8 +81,6 @@ decl_storage! {
         /// on block finalization.
         pub LeftoverTotal get(leftover_total): Value;
 
-        /// All UTXO that are locked
-        LockedOutputs: map H256 => Option<LockStatus<T::BlockNumber>>;
     }
 
     add_extra_genesis {
@@ -98,32 +88,26 @@ decl_storage! {
     }
 }
 
+// External functions: callable by the end user
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
         /// Dispatch a single transaction and update UTXO set accordingly
         pub fn execute(origin, transaction: Transaction) -> DispatchResult {
-            ensure_signed(origin)?;
+            ensure_signed(origin)?; //TODO remove this check.
 
-            // Verify the transaction
-            let leftover = match Self::check_transaction(&transaction)? {
-                CheckInfo::Totals{input, output} => input - output,
-                // ATM: This line will actually never get called on, unless we change the missingInputs longevity threshold
-                CheckInfo::MissingInputs(_) => return Err(DispatchError::Other("Invalid transaction inputs"))
-            };
+            let leftover = Self::check_transaction(&transaction)?;
 
-            // Update unspent outputs
             Self::update_storage(&transaction, leftover)?;
 
-            // Emit event
             Self::deposit_event(Event::TransactionExecuted(transaction));
 
             Ok(())
         }
 
         /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
-        /// Does not perform enough checks. Must only be used for testing purposes.
+        /// Only be used for testing & demo purposes.
         pub fn mint(origin, value: Value, pubkey: H256) -> DispatchResult {
             ensure_signed(origin)?;
             let salt:u64 = <system::Module<T>>::block_number().saturated_into::<u64>();
@@ -157,102 +141,66 @@ decl_event!(
     }
 );
 
-/// Information collected during transaction verification
-/// Rename enum: transaction_status
-pub enum CheckInfo<'a> {
-    /// Combined value of all inputs and outputs
-    Totals { input: Value, output: Value }, // valid
-
-    /// Race condition: some UTXO inputs were missing, populate requires/provides lists.
-    /// Trx hashes are used by transaction pool as tags for ordering
-    MissingInputs(Vec<&'a H256>), // pending
-}
-
-/// Result of transaction verification
-/// TODO fix this, CheckInfo is used wrongly here... maybe no need for this datatype.
-pub type CheckResult<'a> = Result<CheckInfo<'a>, &'static str>;
-
+// "Internal" functions, callable by code.
 impl<T: Trait> Module<T> {
-    /// Check transaction for validity.
-    pub fn check_transaction(_transaction: &Transaction) -> CheckResult<'_> {
-        ensure!(!_transaction.inputs.is_empty(), "no inputs"); // returns Err(...) if incorrect
-        ensure!(!_transaction.outputs.is_empty(), "no outputs");
 
-        {
-            let input_set: BTreeMap<_, ()> =
-                _transaction.inputs.iter().map(|input| (input, ())).collect();
-
-            ensure!(
-                input_set.len() == _transaction.inputs.len(),
-                "each input must only be used once"
-            );
-        }
-
-        {
-            let output_set: BTreeMap<_, ()> = _transaction
-                .outputs
-                .iter()
-                .map(|output| (output, ()))
-                .collect();
-
-            ensure!(
-                output_set.len() == _transaction.outputs.len(),
-                "each output must be defined only once"
-            );
-        }
-
-        let mut total_input: Value = 0;
-        // vector of utxo IDs that users submitted, that doesn't even exist in the first place.
+    /// Checks for race condition, if a certain trx is missing input_utxos in UnspentOutputs
+    /// If None missing inputs: no race condition, gtg
+    /// if Some(missing inputs): there are missing variables
+    pub fn has_race_condition(_transaction: &Transaction) -> Option<Vec<&H256>> {
         let mut missing_utxo = Vec::new();
         for input in _transaction.inputs.iter() {
-            // Fetch UTXO from the storage
-            if let Some(output) = <UnspentOutputs>::get(&input.parent_output) {
-                ensure!(
-                    !<LockedOutputs<T>>::exists(&input.parent_output),
-                    "utxo is locked"
-                );
-
-                // Check uxto signature authorization
-                ensure!(
-                    sp_io::crypto::sr25519_verify(
-                        &SR25519Signature::from_raw(*input.signature.as_fixed_bytes()),
-                        input.parent_output.as_fixed_bytes(),
-                        &Public::from_h256(output.pubkey)
-                    ),
-                    "signature must be valid"
-                );
-
-                // Add the value to the input total
-                total_input = total_input.checked_add(output.value).ok_or("input value overflow")?;
-            } else {
+            if <UnspentOutputs>::get(&input.parent_output).is_none() {
                 missing_utxo.push(&input.parent_output);
             }
         }
+        if ! missing_utxo.is_empty() { return Some(missing_utxo) };
+        
+        None
+    }
 
+    /// Check transaction for validity.
+    /// Returns: Dust value if everything is ok
+    /// If any errors, runtime execution will auto stop!
+    pub fn check_transaction(_transaction: &Transaction) -> Result<Value, &'static str> {
+        ensure!(!_transaction.inputs.is_empty(), "no inputs");
+        ensure!(!_transaction.outputs.is_empty(), "no outputs");
+
+        { //TODO check if can take out of fn scope, likely not...
+            let input_set: BTreeMap<_, ()> =_transaction.inputs.iter().map(|input| (input, ())).collect();
+            ensure!(input_set.len() == _transaction.inputs.len(), "each input must only be used once");
+        }
+        {
+            let output_set: BTreeMap<_, ()> = _transaction.outputs.iter().map(|output| (output, ())).collect();
+            ensure!(output_set.len() == _transaction.outputs.len(), "each output must be defined only once");
+        }
+
+        let mut total_input: Value = 0;
         let mut total_output: Value = 0;
+        
+        for input in _transaction.inputs.iter() {
+            let output = <UnspentOutputs>::get(&input.parent_output).ok_or("missing input utxos")?;
+            // Check uxto signature authorization
+            ensure!(sp_io::crypto::sr25519_verify(
+                        &SR25519Signature::from_raw(*input.signature.as_fixed_bytes()),
+                        input.parent_output.as_fixed_bytes(),
+                        &Public::from_h256(output.pubkey)
+                    ), "signature must be valid"
+            );
+            // Add the value to the input total
+            total_input = total_input.checked_add(output.value).ok_or("input value overflow")?;
+        }
+
         for output in _transaction.outputs.iter() {
             ensure!(output.value != 0, "output value must be nonzero");
-
             let hash = BlakeTwo256::hash_of(output);
             ensure!(!<UnspentOutputs>::exists(hash), "output already exists");
-
-            total_output = total_output
-                .checked_add(output.value)
-                .ok_or("output value overflow")?;
+            total_output = total_output.checked_add(output.value).ok_or("output value overflow")?;
         }
 
-        if missing_utxo.is_empty() {
-            ensure!(
-                total_input >= total_output,
-                "output value must not exceed input value"
-            );
-            Ok(CheckInfo::Totals {
-                input: total_input,
-                output: total_output,
-            })
-        } else {
-            Ok(CheckInfo::MissingInputs(missing_utxo))
-        }
+        ensure!( total_input >= total_output, "output value must not exceed input value");
+
+        Ok( total_input - total_output )  // TODO: check_substract here just to be safe
     }
 	
     /// Redistribute combined leftover value evenly among chain authorities
@@ -362,9 +310,7 @@ mod tests {
 
     type Utxo = Module<Test>;
 
-    // Creates a UTXO for a designated pubkey out of thin air
-    // Inputs: value, recipient
-    // Outputs: Tuple of 
+    // Helper function: creates a utxo
     fn create_utxo(value: Value, pubkey: Public) -> (H256, TransactionOutput) {
 
         let transaction = TransactionOutput {
@@ -433,7 +379,7 @@ mod tests {
             
             let transaction_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
 
-            assert_ok!(Utxo::execute(Origin::signed(0), transaction)); // technical we're signing with an account, that's not the corresponding key
+            assert_ok!(Utxo::execute(Origin::signed(0), transaction)); // technically we're signing with an account, that's not the corresponding key
             assert!(!UnspentOutputs::exists(H256::from(GENESIS_UTXO)));
             assert!(UnspentOutputs::exists(transaction_hash));
         });

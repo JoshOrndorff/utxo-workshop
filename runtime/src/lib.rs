@@ -345,39 +345,19 @@ impl_runtime_apis! {
             if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
                 // List of tags to require
                 let requires;
-
-                // Transaction priority to assign
-                let priority;
                 
-                match <utxo::Module<Runtime>>::check_transaction(&transaction) {
-                    // Transaction verification failed
-                    Err(e) => {
-                        sp_runtime::print(e);
-                        return Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1)));
-                    }
+                match <utxo::Module<Runtime>>::has_race_condition(&transaction) {
 
-                    // Transaction is valid and verified
-                    Ok(utxo::CheckInfo::Totals {input, output}) => {
-                        // All input UTXOs were found, so we consider input conditions to be met
-                        requires = Vec::new();
-
-                        // Priority is based on a transaction fee that is equal to the leftover value
-                        let max_priority = utxo::Value::from(TransactionPriority::max_value());
-                        priority = max_priority.min(input - output) as TransactionPriority;
-                    }
+                    // All input UTXOs were found, so we consider input conditions to be met
+                    None => { requires = Vec::new(); } // TODO: is this line necessary?
                     
-                    // Transaction is missing inputs
-                    Ok(utxo::CheckInfo::MissingInputs(missing)) => {
-                        // Since some referred UTXOs were not found in the storage yet,
-                        // we tag current transaction as requiring those particular UTXOs
+                    // Since some referred UTXOs were not found in the storage yet,
+                    // we tag current transaction as requiring those particular UTXOs
+                    Some(missing) => {
                         requires = missing
                             .iter()         // copies itself into a new vec
                             .map(|hash| hash.as_fixed_bytes().to_vec())
                             .collect();
-
-                        // Transaction could not be validated at this point,
-                        // so we have no sane way to calculate the priority    
-                        priority = 0;
                     }
                 }
 
@@ -390,7 +370,7 @@ impl_runtime_apis! {
                 return Ok(ValidTransaction {
                     requires,
                     provides,
-                    priority,
+                    priority: TransactionPriority::max_value(),
                     longevity: TransactionLongevity::max_value(), // "Forever" This value can be changed so that missinginputs trx can eventually be rejected.
                     propagate: true,
                 });
