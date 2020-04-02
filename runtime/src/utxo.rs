@@ -144,21 +144,6 @@ decl_event!(
 // "Internal" functions, callable by code.
 impl<T: Trait> Module<T> {
 
-    /// Checks for race condition, if a certain trx is missing input_utxos in UnspentOutputs
-    /// If None missing inputs: no race condition, gtg
-    /// if Some(missing inputs): there are missing variables
-    pub fn has_race_condition(_transaction: &Transaction) -> Option<Vec<&H256>> {
-        let mut missing_utxo = Vec::new();
-        for input in _transaction.inputs.iter() {
-            if <UnspentOutputs>::get(&input.parent_output).is_none() {
-                missing_utxo.push(&input.parent_output);
-            }
-        }
-        if ! missing_utxo.is_empty() { return Some(missing_utxo) };
-        
-        None
-    }
-
     /// Check transaction for validity.
     /// Returns: Dust value if everything is ok
     /// If any errors, runtime execution will auto stop!
@@ -258,6 +243,22 @@ impl<T: Trait> Module<T> {
 
         Ok(())
     }
+
+    /// Helper fn for Transaction Pool
+    /// Checks for race condition, if a certain trx is missing input_utxos in UnspentOutputs
+    /// If None missing inputs: no race condition, gtg
+    /// if Some(missing inputs): there are missing variables
+    pub fn has_race_condition(_transaction: &Transaction) -> Option<Vec<&H256>> {
+        let mut missing_utxo = Vec::new();
+        for input in _transaction.inputs.iter() {
+            if <UnspentOutputs>::get(&input.parent_output).is_none() {
+                missing_utxo.push(&input.parent_output);
+            }
+        }
+        if ! missing_utxo.is_empty() { return Some(missing_utxo) };
+        
+        None
+    }
 }
 
 /// Tests for this module
@@ -272,7 +273,6 @@ mod tests {
     // KeyStore needed to store keys...
     use sp_core::testing::{KeyStore, SR25519};
     use sp_core::traits::KeystoreExt;
-
 
     impl_outer_origin! {
         pub enum Origin for Test {}
@@ -382,8 +382,39 @@ mod tests {
             assert_ok!(Utxo::execute(Origin::signed(0), transaction)); // technically we're signing with an account, that's not the corresponding key
             assert!(!UnspentOutputs::exists(H256::from(GENESIS_UTXO)));
             assert!(UnspentOutputs::exists(transaction_hash));
+            
+            // TODO check bob's utxo value
+            
         });
     }
+
+    #[test]
+    fn test_race_condition() {
+        new_test_ext().execute_with(|| {
+            let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
+
+            let nonexistent_utxo = H256::random();
+            let transaction = Transaction {
+                inputs: vec![TransactionInput {
+                    parent_output: nonexistent_utxo,
+                    signature: H512::from(alice_signature),
+                }],
+                outputs: vec![TransactionOutput {
+                    value: 50,
+                    pubkey: H256::from(alice_pub_key),
+                    salt: 1,
+                }],
+            };
+
+            let missing_utxo_hash = Utxo::has_race_condition(&transaction).unwrap()[0];
+            assert_eq!(missing_utxo_hash.as_fixed_bytes(), nonexistent_utxo.as_fixed_bytes()); //partialeq trait not impl for H256
+        });
+    }
+
+    // expected `&sp_api_hidden_includes_construct_runtime::hidden_include::sp_runtime::sp_application_crypto::sp_core::H256`, 
+    // found struct `sp_api_hidden_includes_construct_runtime::hidden_include::sp_runtime::sp_application_crypto::sp_core::H256`
+
 
     // Exercise 1: Fortify transactions against attacks
     // ================================================
