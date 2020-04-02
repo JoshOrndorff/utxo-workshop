@@ -382,9 +382,7 @@ mod tests {
             assert_ok!(Utxo::execute(Origin::signed(0), transaction)); // technically we're signing with an account, that's not the corresponding key
             assert!(!UnspentOutputs::exists(H256::from(GENESIS_UTXO)));
             assert!(UnspentOutputs::exists(transaction_hash));
-            
-            // TODO check bob's utxo value
-            
+            assert_eq!(50, UnspentOutputs::get(transaction_hash).unwrap().value);
         });
     }
 
