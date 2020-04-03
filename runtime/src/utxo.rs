@@ -2,7 +2,7 @@ use super::Aura;
 use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
-    dispatch::{DispatchError, DispatchResult, Vec},
+    dispatch::{DispatchResult, Vec},
     ensure,
 };
 use primitive_types::{H256, H512};
@@ -17,11 +17,10 @@ pub trait Trait: system::Trait {
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
 }
 
-/// Representation of UTXO value
+/// Alias our custom variables 
 pub type Value = u128;
-
-/// Representation of UTXO value
-type Signature = H512; //TODO can this be taken out...
+type Signature = H512;
+// TODO alias utxohash, pubkey
 
 /// Single transaction to be dispatched
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -171,7 +170,7 @@ impl<T: Trait> Module<T> {
 
         let mut total_input: Value = 0;
         let mut total_output: Value = 0;
-        let mut simple_transaction = Self::get_simple_transaction(_transaction);
+        let simple_transaction = Self::get_simple_transaction(_transaction);
 
         for input in _transaction.inputs.iter() {
             let utxo = <UnspentOutputs>::get(&input.parent_output).ok_or("missing input utxo")?;
@@ -269,7 +268,6 @@ impl<T: Trait> Module<T> {
             }
         }
         if ! missing_utxo.is_empty() { return Some(missing_utxo) };
-        
         None
     }
 }
@@ -282,8 +280,6 @@ mod tests {
     use frame_support::{assert_ok, impl_outer_origin, parameter_types, weights::Weight};
     use primitive_types::H256;
     use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
-    // SR25519: keytypeid used to generate sr25519 keys, 
-    // KeyStore needed to store keys...
     use sp_core::testing::{KeyStore, SR25519};
     use sp_core::traits::KeystoreExt;
 
@@ -365,7 +361,6 @@ mod tests {
         );
         
         // Print the values to get GENESIS_UTXO
-        
         let mut ext = sp_io::TestExternalities::from(t);
         ext.register_extension(KeystoreExt(keystore));
         ext
@@ -390,13 +385,16 @@ mod tests {
                 }],
             };
 
+            // Alice signs & executes her transaction
             let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
             transaction.inputs[0].signature = H512::from(alice_signature);
             let transaction_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
-
             assert_ok!(Utxo::execute(Origin::signed(0), transaction)); // technically we're signing with an account, that's not the corresponding key
+            
+            // Check that Bob indeed owns utxo of value 50
             assert!(!UnspentOutputs::exists(H256::from(GENESIS_UTXO)));
             assert!(UnspentOutputs::exists(transaction_hash));
+            assert_eq!(H256::from(bob_pub_key), UnspentOutputs::get(transaction_hash).unwrap().pubkey);
             assert_eq!(50, UnspentOutputs::get(transaction_hash).unwrap().value);
         });
     }
@@ -405,13 +403,12 @@ mod tests {
     fn test_race_condition() {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
-
             let nonexistent_utxo = H256::random();
-            let transaction = Transaction {
+
+            let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: nonexistent_utxo,
-                    signature: H512::from(alice_signature),
+                    signature: H512::zero(),
                 }],
                 outputs: vec![TransactionOutput {
                     value: 50,
@@ -420,8 +417,11 @@ mod tests {
                 }],
             };
 
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+            transaction.inputs[0].signature = H512::from(alice_signature);
+
             let missing_utxo_hash = Utxo::has_race_condition(&transaction).unwrap()[0];
-            assert_eq!(missing_utxo_hash.as_fixed_bytes(), nonexistent_utxo.as_fixed_bytes()); //partialeq trait not impl for H256
+            assert_eq!(missing_utxo_hash.as_fixed_bytes(), nonexistent_utxo.as_fixed_bytes());
         });
     }
 
@@ -464,18 +464,17 @@ mod tests {
     fn attack_by_double_counting_input() {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
 
-            let transaction = Transaction {
+            let mut transaction = Transaction {
                 inputs: vec![
                     TransactionInput {
                         parent_output: H256::from(GENESIS_UTXO.clone()),
-                        signature: H512::from(alice_signature.clone()),
+                        signature: H512::zero(),
                     },
                     // A double spend of the same UTXO!
                     TransactionInput {
                         parent_output: H256::from(GENESIS_UTXO),
-                        signature: H512::from(alice_signature),
+                        signature: H512::zero(),
                     },
                 ],
                 outputs: vec![TransactionOutput {
@@ -484,6 +483,10 @@ mod tests {
                     salt: 0,
                 }],
             };
+
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+            transaction.inputs[0].signature = H512::from(alice_signature.clone());
+            transaction.inputs[1].signature = H512::from(alice_signature);
 
             assert!(
                 Utxo::execute(Origin::signed(0), transaction).is_err(),
@@ -497,12 +500,11 @@ mod tests {
         new_test_ext().execute_with(|| {
 
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
             
-            let transaction = Transaction {
+            let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: H256::from(GENESIS_UTXO),
-                    signature: H512::from(alice_signature),
+                    signature: H512::zero(),
                 }],
                 outputs: vec![
                     TransactionOutput {
@@ -518,6 +520,9 @@ mod tests {
                     },
                 ],
             };
+
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+            transaction.inputs[0].signature = H512::from(alice_signature);
 
             assert!(
                 Utxo::execute(Origin::signed(0), transaction).is_err(),
@@ -555,12 +560,11 @@ mod tests {
     fn attack_by_permanently_sinking_outputs() {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
 
-            let transaction = Transaction {
+            let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: H256::from(GENESIS_UTXO),
-                    signature: H512::from(alice_signature),
+                    signature: H512::zero(),
                 }],
                 outputs: vec![TransactionOutput {
                     value: 0, // A 0 value output burns this output forever!
@@ -568,6 +572,9 @@ mod tests {
                     salt: 0,
                 }],
             };
+
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+            transaction.inputs[0].signature = H512::from(alice_signature);
 
             assert!(
                 Utxo::execute(Origin::signed(0), transaction).is_err(),
@@ -580,12 +587,11 @@ mod tests {
     fn attack_by_overflowing_value() {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
 
-            let transaction = Transaction {
+            let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: H256::from(GENESIS_UTXO),
-                    signature: H512::from(alice_signature),
+                    signature: H512::zero(),
                 }],
                 outputs: vec![
                     TransactionOutput {
@@ -601,6 +607,9 @@ mod tests {
                 ],
             };
 
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+            transaction.inputs[0].signature = H512::from(alice_signature);
+
             assert!(
                 Utxo::execute(Origin::signed(0), transaction).is_err(),
                 "output value overflow"
@@ -612,12 +621,11 @@ mod tests {
     fn attack_by_over_spending() {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
 
-            let transaction = Transaction {
+            let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: H256::from(GENESIS_UTXO),
-                    signature: H512::from(alice_signature),
+                    signature: H512::zero(),
                 }],
                 outputs: vec![
                     TransactionOutput {
@@ -632,6 +640,9 @@ mod tests {
                     },
                 ],
             };
+
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+            transaction.inputs[0].signature = H512::from(alice_signature);
 
             assert!(
                 Utxo::execute(Origin::signed(0), transaction).is_err(),

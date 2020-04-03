@@ -14,7 +14,7 @@ use sp_runtime::{
     ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature
 };
 use sp_runtime::transaction_validity::{
-    InvalidTransaction, TransactionPriority, TransactionLongevity, TransactionValidity, TransactionValidityError, ValidTransaction
+    TransactionPriority, TransactionLongevity, TransactionValidity, ValidTransaction
 };
 use sp_runtime::traits::{
     NumberFor, BlakeTwo256, Block as BlockT, StaticLookup, Verify, ConvertInto, IdentifyAccount
