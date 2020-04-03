@@ -143,6 +143,15 @@ decl_event!(
 
 // "Internal" functions, callable by code.
 impl<T: Trait> Module<T> {
+    
+    // Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.
+    pub fn get_simple_transaction(_transaction: &Transaction) -> Vec<u8> {//&'a [u8] {
+        let mut trx = _transaction.clone();
+        for input in trx.inputs.iter_mut() {
+            input.signature = H512::zero();
+        }
+        trx.encode()
+    }
 
     /// Check transaction for validity.
     /// Returns: Dust value if everything is ok
@@ -162,18 +171,22 @@ impl<T: Trait> Module<T> {
 
         let mut total_input: Value = 0;
         let mut total_output: Value = 0;
-        
+        let mut simple_transaction = Self::get_simple_transaction(_transaction);
+
         for input in _transaction.inputs.iter() {
-            let output = <UnspentOutputs>::get(&input.parent_output).ok_or("missing input utxos")?;
-            // Check uxto signature authorization
+            let utxo = <UnspentOutputs>::get(&input.parent_output).ok_or("missing input utxo")?;
+            
+            // Check that each input-utxo sigScript is
+            // 1. Verfied to be the same key as the utxo's pubKeyScript in UtxoStore
+            // 2. Untampered transaction fields
             ensure!(sp_io::crypto::sr25519_verify(
                         &SR25519Signature::from_raw(*input.signature.as_fixed_bytes()),
-                        input.parent_output.as_fixed_bytes(),
-                        &Public::from_h256(output.pubkey)
+                        &simple_transaction,//input.parent_output.as_fixed_bytes(), //fixed bytes
+                        &Public::from_h256(utxo.pubkey)
                     ), "signature must be valid"
             );
             // Add the value to the input total
-            total_input = total_input.checked_add(output.value).ok_or("input value overflow")?;
+            total_input = total_input.checked_add(utxo.value).ok_or("input value overflow")?;
         }
 
         for output in _transaction.outputs.iter() {
@@ -363,12 +376,12 @@ mod tests {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
             let bob_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[1];
-            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &GENESIS_UTXO).unwrap();
 
-            let transaction = Transaction {
+            // Alice wants to send Bob a utxo of value 50.
+            let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     parent_output: H256::from(GENESIS_UTXO),
-                    signature: H512::from(alice_signature),
+                    signature: H512::zero(),
                 }],
                 outputs: vec![TransactionOutput {
                     value: 50,
@@ -376,7 +389,9 @@ mod tests {
                     salt: 1,
                 }],
             };
-            
+
+            let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+            transaction.inputs[0].signature = H512::from(alice_signature);
             let transaction_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
 
             assert_ok!(Utxo::execute(Origin::signed(0), transaction)); // technically we're signing with an account, that's not the corresponding key
