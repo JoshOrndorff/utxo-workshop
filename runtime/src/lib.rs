@@ -377,7 +377,6 @@ impl_runtime_apis! {
             }
 
             // Fall back to default logic for non UTXO::execute extrinsics
-            // TODO find out when validate_transaction is run
             Executive::validate_transaction(tx)
         }
     }
