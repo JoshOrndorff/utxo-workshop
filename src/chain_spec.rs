@@ -122,13 +122,13 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool) -> GenesisConfig {
-    let initial_utxo = utxo::TransactionOutput {
+    let genesis_utxo = utxo::TransactionOutput {
       value: utxo::Value::max_value(),
       pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
       salt: 0,
     };
 
-    println!("Initial UTXO Hash: {:?}", BlakeTwo256::hash_of(&initial_utxo));
+    println!("Initial UTXO Hash: {:?}", BlakeTwo256::hash_of(&genesis_utxo));
 
     let txn1 = utxo::TransactionOutput {
       value: 100,
@@ -167,7 +167,7 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
         authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
       }),
       utxo: Some(utxo::GenesisConfig {
-        initial_utxo: vec![initial_utxo],
+        genesis_utxo: vec![genesis_utxo],
       }),
     }
 }

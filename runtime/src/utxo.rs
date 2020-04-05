@@ -17,9 +17,7 @@ pub trait Trait: system::Trait {
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
 }
 
-/// Alias the custom variable Value
 pub type Value = u128;
-// TODO add the other types here?
 
 /// Single transaction to be dispatched
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -66,8 +64,8 @@ decl_storage! {
     trait Store for Module<T: Trait> as Utxo {
         /// All valid unspent transaction outputs are stored in this map.
         /// Initial set of UTXO is populated from the list stored in genesis.
-        UnspentOutputs build(|config: &GenesisConfig| {
-            config.initial_utxo
+        UtxoStore build(|config: &GenesisConfig| {
+            config.genesis_utxo
                 .iter()
                 .cloned()
                 .map(|u| (BlakeTwo256::hash_of(&u), u))
@@ -79,11 +77,10 @@ decl_storage! {
         /// It is accumulated during block execution and then drained
         /// on block finalization.
         pub LeftoverTotal get(leftover_total): Value;
-
     }
 
     add_extra_genesis {
-        config(initial_utxo): Vec<TransactionOutput>;
+        config(genesis_utxo): Vec<TransactionOutput>;
     }
 }
 
@@ -113,8 +110,8 @@ decl_module! {
             let utxo = TransactionOutput { value, pubkey, salt };
             let hash = BlakeTwo256::hash_of(&utxo);
 
-            if !<UnspentOutputs>::exists(hash) {
-                <UnspentOutputs>::insert(hash, utxo);
+            if !<UtxoStore>::exists(hash) {
+                <UtxoStore>::insert(hash, utxo);
             } else {
                 sp_runtime::print("cannot mint due to hash collision");
             }
@@ -173,7 +170,7 @@ impl<T: Trait> Module<T> {
         let simple_transaction = Self::get_simple_transaction(_transaction);
 
         for input in _transaction.inputs.iter() {
-            let utxo = <UnspentOutputs>::get(&input.outpoint).ok_or("missing input utxo")?;
+            let utxo = <UtxoStore>::get(&input.outpoint).ok_or("missing input utxo")?;
             
             // Check that each input-utxo sigscript is
             // 1. Verfied to be the same key as the utxo's pubKeyScript in UtxoStore
@@ -191,7 +188,7 @@ impl<T: Trait> Module<T> {
         for output in _transaction.outputs.iter() {
             ensure!(output.value != 0, "output value must be nonzero");
             let hash = BlakeTwo256::hash_of(output);
-            ensure!(!<UnspentOutputs>::exists(hash), "output already exists");
+            ensure!(!<UtxoStore>::exists(hash), "output already exists");
             total_output = total_output.checked_add(output.value).ok_or("output value overflow")?;
         }
 
@@ -224,8 +221,8 @@ impl<T: Trait> Module<T> {
 
             let hash = BlakeTwo256::hash_of(&utxo);
 
-            if !<UnspentOutputs>::exists(hash) {
-                <UnspentOutputs>::insert(hash, utxo);
+            if !<UtxoStore>::exists(hash) {
+                <UtxoStore>::insert(hash, utxo);
                 sp_runtime::print("leftover share sent to");
                 sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
             } else {
@@ -244,26 +241,26 @@ impl<T: Trait> Module<T> {
 
         // Storing updated leftover value
         for input in &transaction.inputs {
-            <UnspentOutputs>::remove(input.outpoint);
+            <UtxoStore>::remove(input.outpoint);
         }
 
         // Add new UTXO to be used by future transactions
         for output in &transaction.outputs {
             let hash = BlakeTwo256::hash_of(output);
-            <UnspentOutputs>::insert(hash, output);
+            <UtxoStore>::insert(hash, output);
         }
 
         Ok(())
     }
 
     /// Helper fn for Transaction Pool
-    /// Checks for race condition, if a certain trx is missing input_utxos in UnspentOutputs
+    /// Checks for race condition, if a certain trx is missing input_utxos in UtxoStore
     /// If None missing inputs: no race condition, gtg
     /// if Some(missing inputs): there are missing variables
     pub fn has_race_condition(_transaction: &Transaction) -> Option<Vec<&H256>> {
         let mut missing_utxo = Vec::new();
         for input in _transaction.inputs.iter() {
-            if <UnspentOutputs>::get(&input.outpoint).is_none() {
+            if <UtxoStore>::get(&input.outpoint).is_none() {
                 missing_utxo.push(&input.outpoint);
             }
         }
@@ -352,7 +349,7 @@ mod tests {
 
         t.top.extend(
             GenesisConfig {
-                initial_utxo: vec![create_utxo(100, alice_pub_key).1],
+                genesis_utxo: vec![create_utxo(100, alice_pub_key).1],
                 ..Default::default()
             }
             .build_storage()
@@ -393,10 +390,10 @@ mod tests {
             assert_ok!(Utxo::execute(Origin::signed(0), transaction));
             
             // Check that Bob indeed owns utxo of value 50
-            assert!(!UnspentOutputs::exists(H256::from(GENESIS_UTXO)));
-            assert!(UnspentOutputs::exists(transaction_hash));
-            assert_eq!(H256::from(bob_pub_key), UnspentOutputs::get(transaction_hash).unwrap().pubkey);
-            assert_eq!(50, UnspentOutputs::get(transaction_hash).unwrap().value);
+            assert!(!UtxoStore::exists(H256::from(GENESIS_UTXO)));
+            assert!(UtxoStore::exists(transaction_hash));
+            assert_eq!(H256::from(bob_pub_key), UtxoStore::get(transaction_hash).unwrap().pubkey);
+            assert_eq!(50, UtxoStore::get(transaction_hash).unwrap().value);
         });
     }
 
