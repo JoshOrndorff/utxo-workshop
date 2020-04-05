@@ -72,11 +72,10 @@ decl_storage! {
                 .collect::<Vec<_>>()
         }): map H256 => Option<TransactionOutput>;
 
-
-        /// Total leftover value to be redistributed among authorities.
-        /// It is accumulated during block execution and then drained
-        /// on block finalization.
-        pub LeftoverTotal get(leftover_total): Value;
+        /// Total reward value to be redistributed among authorities.
+        /// It is accumulated from transactions during block execution
+        /// and then dispersed to validators on block finalization.
+        pub RewardTotal get(reward_total): Value;
     }
 
     add_extra_genesis {
@@ -93,9 +92,9 @@ decl_module! {
         pub fn execute(origin, transaction: Transaction) -> DispatchResult {
             ensure_signed(origin)?; //TODO remove this check.
 
-            let leftover = Self::check_transaction(&transaction)?;
+            let reward = Self::check_transaction(&transaction)?;
 
-            Self::update_storage(&transaction, leftover)?;
+            Self::update_storage(&transaction, reward)?;
 
             Self::deposit_event(Event::TransactionExecuted(transaction));
 
@@ -125,7 +124,7 @@ decl_module! {
                 let r: &Public = x.as_ref();
                 r.0.into()
             }).collect();
-            Self::spend_leftover(&auth);
+            Self::disperse_reward(&auth);
         }
     }
 }
@@ -197,20 +196,20 @@ impl<T: Trait> Module<T> {
         Ok( total_input - total_output )  // TODO: check_substract here just to be safe
     }
 	
-    /// Redistribute combined leftover value evenly among chain authorities
-    fn spend_leftover(authorities: &[H256]) {
-        let leftover = <LeftoverTotal>::take();
-        let share_value: Value = leftover
+    /// Redistribute combined reward value evenly among chain authorities
+    fn disperse_reward(authorities: &[H256]) {
+        let reward = <RewardTotal>::take();
+        let share_value: Value = reward
             .checked_div(authorities.len() as Value)
             .ok_or("No authorities")
             .unwrap();
         if share_value == 0 { return }
 
-        let remainder = leftover
+        let remainder = reward
             .checked_sub(share_value * authorities.len() as Value)
             .ok_or("Sub underflow")
             .unwrap();
-        <LeftoverTotal>::put(remainder as Value);
+        <RewardTotal>::put(remainder as Value);
 
         for authority in authorities {
             let utxo = TransactionOutput {
@@ -223,23 +222,23 @@ impl<T: Trait> Module<T> {
 
             if !<UtxoStore>::exists(hash) {
                 <UtxoStore>::insert(hash, utxo);
-                sp_runtime::print("leftover share sent to");
+                sp_runtime::print("transaction reward sent to");
                 sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
             } else {
-                sp_runtime::print("leftover share wasted due to hash collision");
+                sp_runtime::print("transaction reward wasted due to hash collision");
             }
         }
     }
 
     /// Update storage to reflect changes made by transaction
-    fn update_storage(transaction: &Transaction, leftover: Value) -> DispatchResult {
-        // Calculate new leftover total
-        let new_total = <LeftoverTotal>::get()
-            .checked_add(leftover)
-            .ok_or("Leftover overflow")?;
-        <LeftoverTotal>::put(new_total);
+    fn update_storage(transaction: &Transaction, reward: Value) -> DispatchResult {
+        // Calculate new reward total
+        let new_total = <RewardTotal>::get()
+            .checked_add(reward)
+            .ok_or("Reward overflow")?;
+        <RewardTotal>::put(new_total);
 
-        // Storing updated leftover value
+        // Storing updated reward value
         for input in &transaction.inputs {
             <UtxoStore>::remove(input.outpoint);
         }
