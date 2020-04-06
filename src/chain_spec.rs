@@ -123,11 +123,9 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool) -> GenesisConfig 
 {
-    // TODO update this per latest sigscript scheme
     let genesis_utxo = utxo::TransactionOutput {
       value: utxo::Value::max_value(),
       pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
-      salt: 0,
     };
 
     GenesisConfig {
@@ -156,22 +154,19 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
       }),
     }
 
-    println!("Genesis UTXO Hash: {:?}", BlakeTwo256::hash_of(&genesis_utxo));
-
     // ----------------------
     // HELPER PRINT OUTS FOR DEMO PURPOSES
-    // TODO update this per latest sigscript scheme
+    println!("Genesis UTXO Hash: {:?}", BlakeTwo256::hash_of(&genesis_utxo));
+
     let txn1 = utxo::TransactionOutput {
       value: 100,
       pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Bob").as_slice()),
-      salt: 0,
     };
 
     // TODO update this per latest sigscript scheme
     let txn2 = utxo::TransactionOutput {
       value: utxo::Value::max_value() - 100,
       pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
-      salt: 0,
     };
 
     println!("Transaction #1 {:?}, Hash: {:?}", txn1, BlakeTwo256::hash_of(&txn1));

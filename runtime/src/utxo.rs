@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use sp_core::sr25519::{Public, Signature};
 use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
 use sp_std::collections::btree_map::BTreeMap;
-use system::ensure_signed;
 
 pub trait Trait: system::Trait {
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
@@ -53,11 +52,6 @@ pub struct TransactionOutput {
 	/// owner must provide a proof by hashing whole `TransactionOutput` and
 	/// signing it with a corresponding private key.
     pub pubkey: H256,
-
-    /// Unique (potentially random) value used to distinguish this
-	/// particular output from others addressed to the same public
-	/// key with the same value. Prevents potential replay attacks.
-    pub salt: u64,
 }
 
 decl_storage! {
@@ -90,30 +84,13 @@ decl_module! {
 
         /// Dispatch a single transaction and update UTXO set accordingly
         pub fn execute(origin, transaction: Transaction) -> DispatchResult {
-            ensure_signed(origin)?; //TODO remove this check.
+            // ensure_signed(origin)?; //Not needed anymore
 
             let reward = Self::check_transaction(&transaction)?;
 
             Self::update_storage(&transaction, reward)?;
 
             Self::deposit_event(Event::TransactionExecuted(transaction));
-
-            Ok(())
-        }
-
-        /// DANGEROUS! Adds specified output to the storage potentially overwriting existing one.
-        /// Only be used for testing & demo purposes.
-        pub fn mint(origin, value: Value, pubkey: H256) -> DispatchResult {
-            ensure_signed(origin)?;
-            let salt:u64 = <system::Module<T>>::block_number().saturated_into::<u64>();
-            let utxo = TransactionOutput { value, pubkey, salt };
-            let hash = BlakeTwo256::hash_of(&utxo);
-
-            if !<UtxoStore>::exists(hash) {
-                <UtxoStore>::insert(hash, utxo);
-            } else {
-                sp_runtime::print("cannot mint due to hash collision");
-            }
 
             Ok(())
         }
@@ -138,15 +115,6 @@ decl_event!(
 
 // "Internal" functions, callable by code.
 impl<T: Trait> Module<T> {
-    
-    // Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.
-    pub fn get_simple_transaction(_transaction: &Transaction) -> Vec<u8> {//&'a [u8] {
-        let mut trx = _transaction.clone();
-        for input in trx.inputs.iter_mut() {
-            input.sigscript = H512::zero();
-        }
-        trx.encode()
-    }
 
     /// Check transaction for validity.
     /// Returns: Dust value if everything is ok
@@ -174,6 +142,12 @@ impl<T: Trait> Module<T> {
             // Check that each input-utxo sigscript is
             // 1. Verfied to be the same key as the utxo's pubKeyScript in UtxoStore
             // 2. Untampered transaction fields
+            // sp_std::if_std! {
+            //     println!{"=======CHECKING TRANSACTION=======\n"};
+            //     println!{"ENCODING: simple_trx {:?}\n", &simple_transaction};
+            //     println!{"PUBKEY: actual utxos {:?}\n", &Public::from_h256(utxo.pubkey)};
+            // };
+
             ensure!(sp_io::crypto::sr25519_verify(
                         &Signature::from_raw(*input.sigscript.as_fixed_bytes()),
                         &simple_transaction,//input.outpoint.as_fixed_bytes(), //fixed bytes
@@ -195,7 +169,32 @@ impl<T: Trait> Module<T> {
 
         Ok( total_input - total_output )  // TODO: check_substract here just to be safe
     }
-	
+    
+    /// Update storage to reflect changes made by transaction
+    /// Where each utxo key is a hash of the entire transaction and its order in the TransactionOutputs vector
+    fn update_storage(transaction: &Transaction, reward: Value) -> DispatchResult {
+        // Calculate new reward total
+        let new_total = <RewardTotal>::get()
+            .checked_add(reward)
+            .ok_or("Reward overflow")?;
+        <RewardTotal>::put(new_total);
+
+        // Storing updated reward value
+        for input in &transaction.inputs {
+            <UtxoStore>::remove(input.outpoint);
+        }
+
+        // Add new UTXO to be used by future transactions
+        let index: u64 = 0;
+        for output in &transaction.outputs {
+            let hash = BlakeTwo256::hash_of(&(&transaction.encode(), index));
+            <UtxoStore>::insert(hash, output);
+            index.checked_add(1).ok_or("output index overflow")?;
+        }
+
+        Ok(())
+    }
+
     /// Redistribute combined reward value evenly among chain authorities
     fn disperse_reward(authorities: &[H256]) {
         let reward = <RewardTotal>::take();
@@ -215,7 +214,6 @@ impl<T: Trait> Module<T> {
             let utxo = TransactionOutput {
                 value: share_value,
                 pubkey: *authority,
-                salt: <system::Module<T>>::block_number().saturated_into::<u64>(),
             };
 
             let hash = BlakeTwo256::hash_of(&utxo);
@@ -229,27 +227,19 @@ impl<T: Trait> Module<T> {
             }
         }
     }
-
-    /// Update storage to reflect changes made by transaction
-    fn update_storage(transaction: &Transaction, reward: Value) -> DispatchResult {
-        // Calculate new reward total
-        let new_total = <RewardTotal>::get()
-            .checked_add(reward)
-            .ok_or("Reward overflow")?;
-        <RewardTotal>::put(new_total);
-
-        // Storing updated reward value
-        for input in &transaction.inputs {
-            <UtxoStore>::remove(input.outpoint);
+        
+    // Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.
+    pub fn get_simple_transaction(_transaction: &Transaction) -> Vec<u8> {//&'a [u8] {
+        let mut trx = _transaction.clone();
+        for input in trx.inputs.iter_mut() {
+            input.sigscript = H512::zero();
         }
 
-        // Add new UTXO to be used by future transactions
-        for output in &transaction.outputs {
-            let hash = BlakeTwo256::hash_of(output);
-            <UtxoStore>::insert(hash, output);
-        }
+        // sp_std::if_std! {
+        //     println!{"SIMPLE TRANSACTION IS NOW: {:?}", trx.clone()};
+        // }
 
-        Ok(())
+        trx.encode()
     }
 
     /// Helper fn for Transaction Pool
@@ -315,24 +305,11 @@ mod tests {
 
     type Utxo = Module<Test>;
 
-    // Helper function: creates a utxo
-    fn create_utxo(value: Value, pubkey: Public) -> (H256, TransactionOutput) {
-
-        let transaction = TransactionOutput {
-            value,
-            pubkey: H256::from(pubkey), //H256::from_slice(&ALICE_KEY),
-            salt: 0,
-        };
-        
-        (BlakeTwo256::hash_of(&transaction), transaction)
-    }
-
     // need to manually import this crate since its no include by default
     use hex_literal::hex;
 
     const ALICE_PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-    const BOB_PHRASE: &str = "lobster flock few equip connect boost excuse glass machine find wonder tattoo";
-    const GENESIS_UTXO: [u8; 32] = hex!("0a746d36b8357640690608da229648a51552b0add7ddbd8803efa1013cadbd4c");
+    const GENESIS_UTXO: [u8; 32] = hex!("79eabcbd5ef6e958c6a7851b36da07691c19bda1835a08f875aa286911800999");
     
     // This function basically just builds a genesis storage key/value store according to our desired mockup.
     // We start each test by giving Alice 100 utxo to start with.
@@ -340,7 +317,6 @@ mod tests {
     
         let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
         let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
-        let _bob_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(BOB_PHRASE)).unwrap();
 
         let mut t = system::GenesisConfig::default()
             .build_storage::<Test>()
@@ -348,7 +324,12 @@ mod tests {
 
         t.top.extend(
             GenesisConfig {
-                genesis_utxo: vec![create_utxo(100, alice_pub_key).1],
+                genesis_utxo: vec![
+                    TransactionOutput {
+                        value: 100,
+                        pubkey: H256::from(alice_pub_key),
+                    }
+                ],
                 ..Default::default()
             }
             .build_storage()
@@ -366,9 +347,8 @@ mod tests {
     fn test_simple_transaction() {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            let bob_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[1];
 
-            // Alice wants to send Bob a utxo of value 50.
+            // Alice wants to send herself a new utxo of value 50.
             let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     outpoint: H256::from(GENESIS_UTXO),
@@ -376,22 +356,18 @@ mod tests {
                 }],
                 outputs: vec![TransactionOutput {
                     value: 50,
-                    pubkey: H256::from(bob_pub_key),
-                    salt: 1,
+                    pubkey: H256::from(alice_pub_key),
                 }],
             };
             
-            // TODO: this test randomly fails about 1/3 runs, with the error "Signature must be valid"
-            // Figure out what randomness exists in the following line that causes this.
             let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
             transaction.inputs[0].sigscript = H512::from(alice_signature);
-            let transaction_hash = BlakeTwo256::hash_of(&transaction.outputs[0]);
-            assert_ok!(Utxo::execute(Origin::signed(0), transaction));
+        
+            let transaction_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64)); 
             
-            // Check that Bob indeed owns utxo of value 50
+            assert_ok!(Utxo::execute(Origin::signed(0), transaction));
             assert!(!UtxoStore::exists(H256::from(GENESIS_UTXO)));
             assert!(UtxoStore::exists(transaction_hash));
-            assert_eq!(H256::from(bob_pub_key), UtxoStore::get(transaction_hash).unwrap().pubkey);
             assert_eq!(50, UtxoStore::get(transaction_hash).unwrap().value);
         });
     }
@@ -410,7 +386,6 @@ mod tests {
                 outputs: vec![TransactionOutput {
                     value: 50,
                     pubkey: H256::from(alice_pub_key),
-                    salt: 1,
                 }],
             };
 
@@ -422,18 +397,10 @@ mod tests {
         });
     }
 
-    // expected `&sp_api_hidden_includes_construct_runtime::hidden_include::sp_runtime::sp_application_crypto::sp_core::H256`, 
-    // found struct `sp_api_hidden_includes_construct_runtime::hidden_include::sp_runtime::sp_application_crypto::sp_core::H256`
-
-
     // Exercise 1: Fortify transactions against attacks
     // ================================================
-    //
     // The following tests simulate malicious UTXO transactions
     // Implement the check_transaction() function to thwart such attacks
-    //
-    // Hint: Examine types CheckResult, CheckInfo for the expected behaviors of this function
-    // Hint: Make this function public, as it will be later used outside of this module
 
     #[test]
     fn attack_with_empty_transactions() {
@@ -477,7 +444,6 @@ mod tests {
                 outputs: vec![TransactionOutput {
                     value: 100,
                     pubkey: H256::from(alice_pub_key),
-                    salt: 0,
                 }],
             };
 
@@ -507,13 +473,11 @@ mod tests {
                     TransactionOutput {
                         value: 100,
                         pubkey: H256::from(alice_pub_key),
-                        salt: 0,
                     },
+                    // Same output defined here!
                     TransactionOutput {
-                        // Same output defined here!
                         value: 100,
                         pubkey: H256::from(alice_pub_key),
-                        salt: 0, // TODO check this
                     },
                 ],
             };
@@ -542,7 +506,6 @@ mod tests {
                 outputs: vec![TransactionOutput {
                     value: 100,
                     pubkey: H256::from(alice_pub_key),
-                    salt: 0,
                 }],
             };
 
@@ -566,7 +529,6 @@ mod tests {
                 outputs: vec![TransactionOutput {
                     value: 0, // A 0 value output burns this output forever!
                     pubkey: H256::from(alice_pub_key),
-                    salt: 0,
                 }],
             };
 
@@ -594,12 +556,10 @@ mod tests {
                     TransactionOutput {
                         value: Value::max_value(),
                         pubkey:  H256::from(alice_pub_key),
-                        salt: 1,
                     },
                     TransactionOutput {
                         value: 10 as Value, // Attempts to do overflow total output value
                         pubkey: H256::from(alice_pub_key),
-                        salt: 1,
                     },
                 ],
             };
@@ -628,12 +588,10 @@ mod tests {
                     TransactionOutput {
                         value: 100 as Value,
                         pubkey: H256::from(alice_pub_key),
-                        salt: 1,
                     },
                     TransactionOutput {
                         value: 1 as Value, // Creates 1 new utxo out of thin air!
                         pubkey: H256::from(alice_pub_key),
-                        salt: 1,
                     },
                 ],
             };
