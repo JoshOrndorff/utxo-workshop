@@ -349,7 +349,7 @@ impl_runtime_apis! {
                 match <utxo::Module<Runtime>>::has_race_condition(&transaction) {
 
                     // All input UTXOs were found, so we consider input conditions to be met
-                    None => { requires = Vec::new(); } // TODO: is this line necessary?
+                    None => { requires = Vec::new(); }
                     
                     // Since some referred UTXOs were not found in the storage yet,
                     // we tag current transaction as requiring those particular UTXOs
@@ -371,7 +371,7 @@ impl_runtime_apis! {
                     requires,
                     provides,
                     priority: TransactionPriority::max_value(),
-                    longevity: TransactionLongevity::max_value(), // "Forever" This value can be changed so that missinginputs trx can eventually be rejected.
+                    longevity: TransactionLongevity::max_value(),
                     propagate: true,
                 });
             }
