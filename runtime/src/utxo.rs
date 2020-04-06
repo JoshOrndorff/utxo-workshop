@@ -9,7 +9,7 @@ use primitive_types::{H256, H512};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_core::sr25519::{Public, Signature};
-use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
+use sp_runtime::traits::{BlakeTwo256, Hash};
 use sp_std::collections::btree_map::BTreeMap;
 
 pub trait Trait: system::Trait {
@@ -83,14 +83,14 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Dispatch a single transaction and update UTXO set accordingly
-        pub fn execute(origin, transaction: Transaction) -> DispatchResult {
+        pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
             // ensure_signed(origin)?; //Not needed anymore
 
             let reward = Self::check_transaction(&transaction)?;
 
             Self::update_storage(&transaction, reward)?;
 
-            Self::deposit_event(Event::TransactionExecuted(transaction));
+            Self::deposit_event(Event::TransactionSuccess(transaction));
 
             Ok(())
         }
@@ -109,7 +109,7 @@ decl_module! {
 decl_event!(
     pub enum Event {
         /// Transaction was executed successfully
-        TransactionExecuted(Transaction),
+        TransactionSuccess(Transaction),
     }
 );
 
@@ -117,13 +117,13 @@ decl_event!(
 impl<T: Trait> Module<T> {
 
     /// Check transaction for validity.
-    /// Returns: Dust value if everything is ok
-    /// If any errors, runtime execution will auto stop!
+    /// Returns: Remaining reward value for validators
+    /// If any errors, runtime execution will halt
     pub fn check_transaction(_transaction: &Transaction) -> Result<Value, &'static str> {
         ensure!(!_transaction.inputs.is_empty(), "no inputs");
         ensure!(!_transaction.outputs.is_empty(), "no outputs");
 
-        { //TODO check if can take out of fn scope, likely not...
+        {
             let input_set: BTreeMap<_, ()> =_transaction.inputs.iter().map(|input| (input, ())).collect();
             ensure!(input_set.len() == _transaction.inputs.len(), "each input must only be used once");
         }
@@ -138,23 +138,14 @@ impl<T: Trait> Module<T> {
 
         for input in _transaction.inputs.iter() {
             let utxo = <UtxoStore>::get(&input.outpoint).ok_or("missing input utxo")?;
-            
-            // Check that each input-utxo sigscript is
-            // 1. Verfied to be the same key as the utxo's pubKeyScript in UtxoStore
-            // 2. Untampered transaction fields
-            // sp_std::if_std! {
-            //     println!{"=======CHECKING TRANSACTION=======\n"};
-            //     println!{"ENCODING: simple_trx {:?}\n", &simple_transaction};
-            //     println!{"PUBKEY: actual utxos {:?}\n", &Public::from_h256(utxo.pubkey)};
-            // };
 
             ensure!(sp_io::crypto::sr25519_verify(
                         &Signature::from_raw(*input.sigscript.as_fixed_bytes()),
-                        &simple_transaction,//input.outpoint.as_fixed_bytes(), //fixed bytes
+                        &simple_transaction,
                         &Public::from_h256(utxo.pubkey)
                     ), "signature must be valid"
             );
-            // Add the value to the input total
+            
             total_input = total_input.checked_add(utxo.value).ok_or("input value overflow")?;
         }
 
@@ -167,7 +158,7 @@ impl<T: Trait> Module<T> {
 
         ensure!( total_input >= total_output, "output value must not exceed input value");
 
-        Ok( total_input - total_output )  // TODO: check_substract here just to be safe
+        Ok( total_input.checked_sub(total_output).ok_or("reward underflow")? )
     }
     
     /// Update storage to reflect changes made by transaction
@@ -362,10 +353,9 @@ mod tests {
             
             let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
             transaction.inputs[0].sigscript = H512::from(alice_signature);
-        
             let transaction_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64)); 
             
-            assert_ok!(Utxo::execute(Origin::signed(0), transaction));
+            assert_ok!(Utxo::spend(Origin::signed(0), transaction));
             assert!(!UtxoStore::exists(H256::from(GENESIS_UTXO)));
             assert!(UtxoStore::exists(transaction_hash));
             assert_eq!(50, UtxoStore::get(transaction_hash).unwrap().value);
@@ -391,8 +381,8 @@ mod tests {
 
             let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
             transaction.inputs[0].sigscript = H512::from(alice_signature);
-
             let missing_utxo_hash = Utxo::has_race_condition(&transaction).unwrap()[0];
+            
             assert_eq!(missing_utxo_hash.as_fixed_bytes(), nonexistent_utxo.as_fixed_bytes());
         });
     }
@@ -406,12 +396,12 @@ mod tests {
     fn attack_with_empty_transactions() {
         new_test_ext().execute_with(|| {
             assert!(
-                Utxo::execute(Origin::signed(0), Transaction::default()).is_err(), // an empty trx
+                Utxo::spend(Origin::signed(0), Transaction::default()).is_err(), // an empty trx
                 "no inputs"
             );
 
             assert!(
-                Utxo::execute(
+                Utxo::spend(
                     Origin::signed(0),
                     Transaction {
                         inputs: vec![TransactionInput::default()], // an empty trx
@@ -452,7 +442,7 @@ mod tests {
             transaction.inputs[1].sigscript = H512::from(alice_signature);
 
             assert!(
-                Utxo::execute(Origin::signed(0), transaction).is_err(),
+                Utxo::spend(Origin::signed(0), transaction).is_err(),
                 "each input must only be used once"
             );
         });
@@ -486,7 +476,7 @@ mod tests {
             transaction.inputs[0].sigscript = H512::from(alice_signature);
 
             assert!(
-                Utxo::execute(Origin::signed(0), transaction).is_err(),
+                Utxo::spend(Origin::signed(0), transaction).is_err(),
                 "each output must be defined only once"
             );
         });
@@ -510,7 +500,7 @@ mod tests {
             };
 
             assert!(
-                Utxo::execute(Origin::signed(0), transaction).is_err(),
+                Utxo::spend(Origin::signed(0), transaction).is_err(),
                 "signature must be valid"
             );
         });
@@ -536,7 +526,7 @@ mod tests {
             transaction.inputs[0].sigscript = H512::from(alice_signature);
 
             assert!(
-                Utxo::execute(Origin::signed(0), transaction).is_err(),
+                Utxo::spend(Origin::signed(0), transaction).is_err(),
                 "output value must be nonzero"
             );
         });
@@ -568,7 +558,7 @@ mod tests {
             transaction.inputs[0].sigscript = H512::from(alice_signature);
 
             assert!(
-                Utxo::execute(Origin::signed(0), transaction).is_err(),
+                Utxo::spend(Origin::signed(0), transaction).is_err(),
                 "output value overflow"
             );
         });
@@ -600,7 +590,7 @@ mod tests {
             transaction.inputs[0].sigscript = H512::from(alice_signature);
 
             assert!(
-                Utxo::execute(Origin::signed(0), transaction).is_err(),
+                Utxo::spend(Origin::signed(0), transaction).is_err(),
                 "output value must not exceed input value"
             );
         });

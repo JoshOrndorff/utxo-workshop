@@ -156,20 +156,20 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
 
     // ----------------------
     // HELPER PRINT OUTS FOR DEMO PURPOSES
-    println!("Genesis UTXO Hash: {:?}", BlakeTwo256::hash_of(&genesis_utxo));
+    // println!("Genesis UTXO Hash: {:?}", BlakeTwo256::hash_of(&genesis_utxo));
 
-    let txn1 = utxo::TransactionOutput {
-      value: 100,
-      pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Bob").as_slice()),
-    };
+    // let txn1 = utxo::TransactionOutput {
+    //   value: 100,
+    //   pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Bob").as_slice()),
+    // };
 
-    // TODO update this per latest sigscript scheme
-    let txn2 = utxo::TransactionOutput {
-      value: utxo::Value::max_value() - 100,
-      pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
-    };
+    // // TODO update this per latest sigscript scheme
+    // let txn2 = utxo::TransactionOutput {
+    //   value: utxo::Value::max_value() - 100,
+    //   pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
+    // };
 
-    println!("Transaction #1 {:?}, Hash: {:?}", txn1, BlakeTwo256::hash_of(&txn1));
-    println!("Transaction #2 {:?}, Hash: {:?}", txn2, BlakeTwo256::hash_of(&txn2));
+    // println!("Transaction #1 {:?}, Hash: {:?}", txn1, BlakeTwo256::hash_of(&txn1));
+    // println!("Transaction #2 {:?}, Hash: {:?}", txn2, BlakeTwo256::hash_of(&txn2));
     // ----------------------
 }

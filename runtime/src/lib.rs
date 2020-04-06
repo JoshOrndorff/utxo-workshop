@@ -342,7 +342,7 @@ impl_runtime_apis! {
             use sp_runtime::traits::Hash;
             
             // Extrinsics representing UTXO transaction need some special handling
-            if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
+            if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
                 // List of tags to require
                 let requires;
                 
