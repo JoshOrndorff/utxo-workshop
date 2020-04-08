@@ -126,26 +126,36 @@ git fetch origin workshop:workshop
 git checkout workshop
 ```
 
-2. Cd into the base directory. Try running the test with: `cargo test -p utxo-runtime`. Your first task: fix all the compiler errors!
+2. Cd into the base directory. Try running the test with: `cargo test -p utxo-runtime`.
 
 ```zsh
-ADD all the errors
+compiling utxo-runtime v2.0.0 (/Users/nicole/Desktop/utxo-workshop/runtime)
+error[E0433]: failed to resolve: use of undeclared type or module `H512`
+   --> /Users/nicole/Desktop/utxo-workshop/runtime/src/utxo.rs:236:31
+    |
+236 |             input.sigscript = H512::zero();
+    |                               ^^^^ use of undeclared type or module `H512`
+
+...
 ```
 
-3. Once your code compiles, its now time to fix the `9` failing tests!
+3. Your first task: fix all the compiler errors! Hint: Look for the `TODO` comments in `utxo.rs` to see where to fix errors. 
+
+4. Once your code compiles, it's now time to fix the `8` failing tests!
 
 ```zsh
 failures:
     utxo::tests::attack_by_double_counting_input
     utxo::tests::attack_by_double_generating_output
     utxo::tests::attack_by_over_spending
-    utxo::tests::attack_by_overflowing
+    utxo::tests::attack_by_overflowing_value
     utxo::tests::attack_by_permanently_sinking_outputs
     utxo::tests::attack_with_empty_transactions
     utxo::tests::attack_with_invalid_signature
+    utxo::tests::test_simple_transaction
 ```
 
-4. Go to `utxo.rs` and read the workshop comments. Your goal is to edit the `check_transaction()` function & make all tests pass.
+5. In `utxo.rs`, edit the logic in `check_transaction()` function to make all tests pass.
 
 ```zsh
 running 9 tests
@@ -156,7 +166,6 @@ test utxo::tests::attack_by_over_spending ... ok
 test utxo::tests::attack_with_empty_transactions ... ok
 test utxo::tests::attack_with_invalid_signature ... ok
 test utxo::tests::attack_by_permanently_sinking_outputs ... ok
-test utxo::tests::test_race_condition ... ok
 test utxo::tests::test_simple_transaction ... ok
 ```
 
@@ -165,7 +174,9 @@ test utxo::tests::test_simple_transaction ... ok
 
 **Estimated time**: 1 hour
 
-In this workshop, you will implement this UTXO project from scratch and learn:
+In this workshop, you will implement this UTXO project from scratch using Substrate.
+
+You will learn:
 - How to implement the UTXO model on Substrate
 - How to secure UTXO transactions against attacks
 - How to seed genesis block with UTXOs

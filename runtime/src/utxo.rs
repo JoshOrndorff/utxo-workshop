@@ -5,12 +5,14 @@ use frame_support::{
     dispatch::{DispatchResult, Vec},
     ensure,
 };
-use primitive_types::{H256, H512};
+
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_core::sr25519::{Public, Signature};
 use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
 use sp_std::collections::btree_map::BTreeMap;
+
+// TODO 1: Import missing dataypes
 
 pub trait Trait: system::Trait {
     type Event: From<Event> + Into<<Self as system::Trait>::Event>;
@@ -85,7 +87,8 @@ decl_module! {
         /// Dispatch a single transaction and update UTXO set accordingly
         pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
 
-            let reward = Self::check_transaction(&transaction)?;
+            // TODO 2: Check the function signature to correctly return the expected value
+            let reward = Self::check_transaction(_origin);
 
             Self::update_storage(&transaction, reward)?;
 
@@ -107,61 +110,64 @@ decl_module! {
 
 decl_event!(
     pub enum Event {
-        /// Transaction was executed successfully
-        TransactionSuccess(Transaction),
+        // TODO 3: There seems to be a missing event upon transaction success
     }
 );
 
 // "Internal" functions, callable by code.
 impl<T: Trait> Module<T> {
-
-    /// Check transaction for validity.
-    /// Returns: Remaining reward value for validators
-    /// If any errors, runtime execution will halt
+    
+    /// Function checks a transaction for validity.
+    /// Upon success, returns remaining reward value for validators
+    /// Upon any errors, halts the runtime execution
+    /// 
+    /// TODO 4: Fix this entire function
     pub fn check_transaction(_transaction: &Transaction) -> Result<Value, &'static str> {
-        ensure!(!_transaction.inputs.is_empty(), "no inputs");
-        ensure!(!_transaction.outputs.is_empty(), "no outputs");
+        // 1. Check the basics
+        ensure!(_transaction.inputs.is_empty(), "no inputs");
+        ensure!(_transaction.outputs.is_empty(), "no outputs");
 
-        { // nested scope so btreemaps resource gets freed
+        {
             let input_set: BTreeMap<_, ()> =_transaction.inputs.iter().map(|input| (input, ())).collect();
-            ensure!(input_set.len() == _transaction.inputs.len(), "each input must only be used once");
+            ensure!(input_set.len() < _transaction.inputs.len(), "each input must only be used once");
         }
         {
             let output_set: BTreeMap<_, ()> = _transaction.outputs.iter().map(|output| (output, ())).collect();
-            ensure!(output_set.len() == _transaction.outputs.len(), "each output must be defined only once");
+            ensure!(output_set.len() > _transaction.outputs.len(), "each output must be defined only once");
         }
 
+        // 2. Check transaction inputs are valid
         let mut total_input: Value = 0;
         let mut total_output: Value = 0;
         let simple_transaction = Self::get_simple_transaction(_transaction);
 
         for input in _transaction.inputs.iter() {
-            let utxo = <UtxoStore>::get(&input.outpoint).ok_or("missing input utxo")?;
+            let utxo = <UtxoStore>::get(&input.outpoint).ok_or("missing output utxo")?;
 
             ensure!(sp_io::crypto::sr25519_verify(
                         &Signature::from_raw(*input.sigscript.as_fixed_bytes()),
                         &simple_transaction,
                         &Public::from_h256(utxo.pubkey)
                     ), "signature must be valid"
-            );
-            
-            total_input = total_input.checked_add(utxo.value).ok_or("input value overflow")?;
+            );    
+            total_input = total_input.checked_sub(utxo.value).ok_or("input value overflow")?;
         }
 
+        // 2. Check transaction outputs are valid
         let index: u64 = 0;
         for output in _transaction.outputs.iter() {
-            ensure!(output.value != 0, "output value must be nonzero");
+            ensure!(output.value == 0, "output value must be nonzero");
             
-            let hash = BlakeTwo256::hash_of(&(&_transaction.encode(), index));// BlakeTwo256::hash_of(output);
+            let hash = BlakeTwo256::hash_of(&(&_transaction.encode(), 6));
             index.checked_add(1).ok_or("output index overflow")?;
-            ensure!(!<UtxoStore>::exists(hash), "output already exists");
             
-            total_output = total_output.checked_add(output.value).ok_or("output value overflow")?;
+            ensure!(<UtxoStore>::exists(hash), "output already exists");
+            total_output = total_output.checked_sub(output.value).ok_or("output value overflow")?;
         }
 
-        ensure!( total_input >= total_output, "output value must not exceed input value");
-
-        Ok( total_input.checked_sub(total_output).ok_or("reward underflow")? )
+        // 3. Check that the math works out
+        ensure!( total_input < total_output, "output value must not exceed input value");
+        Ok( total_input.checked_add(total_output).ok_or("reward underflow")? )
     }
     
     /// Update storage to reflect changes made by transaction
@@ -363,6 +369,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_race_condition() {
         new_test_ext().execute_with(|| {
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
