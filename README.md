@@ -41,7 +41,9 @@ git clone https://github.com/substrate-developer-hub/utxo-workshop.git
 
 ## UI Demo
 
-In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js).
+In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js). 
+
+The following demo takes you through a scenario where `Alice sends Bob a UTXO with value 50` from her original UTXO (value 100) that she already had during genesis: 
 
 
 1. Compile and build a release in dev mode
@@ -61,17 +63,15 @@ cargo build --release
 ./target/release/utxo-workshop purge-chain --dev
 ```
 
-3. In the console, notice the following helper printouts. In particular, notice a seed account `Alice` was already seeded with `100 UTXO` upon the genesis block. 
-
-Notice we've printed out a few more helper hashes for you, including the transaction encoding for if `Alice were to send Bob 50 UTXO`.
+3. In the console, notice the following helper printouts. In particular, notice the default account `Alice` was already has `100 UTXO` upon the genesis block.
 
 ```zsh
-TODO put printouts here
+
 ```
 
-4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings). Make sure the client is connected to your local node by going to Settings > General, and selecting `Local Node` in the `remote node` dropdown.
+4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings), making sure the client is connected to your local node by going to Settings > General, and selecting `Local Node` in the `remote node` dropdown.
 
-5. This UTXO project defines custom datatypes that the JS client cannot infer. Define the custom types in PolkadotJS by going to Settings > Developer tab and paste in the following JSON:
+5. **Declare the custom datatypes in PolkadotJS**, since the JS client cannot authomatically infer this from the UTXO module. Go to Settings > Developer tab and paste in the following JSON:
 
 ```json
 {
@@ -91,18 +91,23 @@ TODO put printouts here
 }
 ```
 
-6. **Check that Alice already has 100 UTXO at genesis**. In `Chain State` > `Storage`, select `utxoModule`. Input the hash `xxxx`. Click the `+` notation to query blockchain state.
+6. **Check that Alice already has 100 UTXO at genesis**. In `Chain State` > `Storage`, select `utxoModule`. Input the hash `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`. Click the `+` notation to query blockchain state.
 
 Verify that: 
- - UTXO value is `100`
- - The pubkey indeed belongs to Alice (which is a default, hardcoded account). You use the [subkey](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys) tool to confirm that the pubkey indeed belongs to Alice
+ - This UTXO has a value of `100`
+ - This UTXO belongs to Alice's pubkey. You use the [subkey](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys) tool to confirm that the pubkey indeed belongs to Alice
 
-7. **Spend Alice's UTXO, giving 50 to Bob.** In the `Extrinsics` tab, invoke the `spend` function from the `utxoModule`, using Alice as the transaction sender. Submit the following transaction hash `TODO` in which Alice sends Bob 50 utxo, burning the remaining amout. 
+7. **Spend Alice's UTXO, giving 50 to Bob.** In the `Extrinsics` tab, invoke the `spend` function from the `utxoModule`, using Alice as the transaction sender. Use the following input parameters:
 
-8. **Verify that your transaction succeeded**. In `Chain State`, look up the following UTXO hash: `TODO`.
-Also verify that the genesis utxo has been spent and no longer exists. 
+- outpoint: `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`
+- sigscript: `0x6ceab99702c60b111c12c2867679c5555c00dcd4d6ab40efa01e3a65083bfb6c6f5c1ed3356d7141ec61894153b8ba7fb413bf1e990ed99ff6dee5da1b24fd83`
+- value: `50`
+- pubkey: `0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48`
+```
 
-Coming soon: A video walkthrough of the above. 
+8. **Verify that your transaction succeeded**. In `Chain State`, look up the UTXO hash: `0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6` to verify that a new UTXO of 50, belonging to Bob, now exists! Also you can verify that the genesis utxo has been spent and no longer exists in UtxoStore. 
+
+Coming soon: A video walkthrough of the above demo.
 
 ## Beginner Workshop
 **Estimated time**: 2 hours
