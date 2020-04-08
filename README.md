@@ -105,9 +105,11 @@ Verify that:
 - pubkey: `0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48`
 ```
 
-8. **Verify that your transaction succeeded**. In `Chain State`, look up the UTXO hash: `0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6` to verify that a new UTXO of 50, belonging to Bob, now exists! Also you can verify that the genesis utxo has been spent and no longer exists in UtxoStore. 
+Send this as an unsigned transaction, since the proof is already in the `sigscript` input.
 
-Coming soon: A video walkthrough of the above demo.
+8. **Verify that your transaction succeeded**. In `Chain State`, look up the UTXO hash: `0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6` to verify that a new UTXO of 50, belonging to Bob, now exists! Also you can verify that Alice's original UTXO has been spent and no longer exists in UtxoStore.
+
+*Coming soon: A video walkthrough of the above demo.*
 
 ## Beginner Workshop
 **Estimated time**: 2 hours
