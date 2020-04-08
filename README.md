@@ -1,6 +1,6 @@
 # UTXO on Substrate
 
-A UTXO chain implementation on Substrate, with two self guided workshops.Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
+A UTXO chain implementation on Substrate, with two self-guided workshops.Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
 
 Substrate Version: `pre-v2.0`. For educational purposes only. 
 
@@ -43,8 +43,9 @@ git clone https://github.com/substrate-developer-hub/utxo-workshop.git
 
 In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js). 
 
-The following demo takes you through a scenario where `Alice sends Bob a UTXO with value 50` from her original UTXO (value 100) that she already had during genesis: 
-
+The following demo takes you through a scenario where: 
+- Alice already owns a UTXO of value 100 upon genesis
+- Alice sends Bob a UTXO with value 50, tipping the remainder to validators
 
 1. Compile and build a release in dev mode
 ```
@@ -63,11 +64,7 @@ cargo build --release
 ./target/release/utxo-workshop purge-chain --dev
 ```
 
-3. In the console, notice the following helper printouts. In particular, notice the default account `Alice` was already has `100 UTXO` upon the genesis block.
-
-```zsh
-
-```
+3. In the console, notice the helper printouts. In particular, notice the default account `Alice` was already has `100 UTXO` upon the genesis block.
 
 4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings), making sure the client is connected to your local node by going to Settings > General, and selecting `Local Node` in the `remote node` dropdown.
 
@@ -93,21 +90,20 @@ cargo build --release
 
 6. **Check that Alice already has 100 UTXO at genesis**. In `Chain State` > `Storage`, select `utxoModule`. Input the hash `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`. Click the `+` notation to query blockchain state.
 
-Verify that: 
- - This UTXO has a value of `100`
- - This UTXO belongs to Alice's pubkey. You use the [subkey](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys) tool to confirm that the pubkey indeed belongs to Alice
+    Notice that: 
+    - This UTXO has a value of `100`
+    - This UTXO belongs to Alice's pubkey. You use the [subkey](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys) tool to confirm that the pubkey indeed belongs to Alice
 
 7. **Spend Alice's UTXO, giving 50 to Bob.** In the `Extrinsics` tab, invoke the `spend` function from the `utxoModule`, using Alice as the transaction sender. Use the following input parameters:
 
-- outpoint: `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`
-- sigscript: `0x6ceab99702c60b111c12c2867679c5555c00dcd4d6ab40efa01e3a65083bfb6c6f5c1ed3356d7141ec61894153b8ba7fb413bf1e990ed99ff6dee5da1b24fd83`
-- value: `50`
-- pubkey: `0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48`
-```
+    - outpoint: `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`
+    - sigscript: `0x6ceab99702c60b111c12c2867679c5555c00dcd4d6ab40efa01e3a65083bfb6c6f5c1ed3356d7141ec61894153b8ba7fb413bf1e990ed99ff6dee5da1b24fd83`
+    - value: `50`
+    - pubkey: `0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48`
 
-Send this as an unsigned transaction, since the proof is already in the `sigscript` input.
+    Send this as an `unsigned` transaction. With UTXO blockchains, the proof is already in the `sigscript` input.
 
-8. **Verify that your transaction succeeded**. In `Chain State`, look up the UTXO hash: `0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6` to verify that a new UTXO of 50, belonging to Bob, now exists! Also you can verify that Alice's original UTXO has been spent and no longer exists in UtxoStore.
+8. **Verify that your transaction succeeded**. In `Chain State`, look up the newly created UTXO hash: `0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6` to verify that a new UTXO of 50, belonging to Bob, now exists! Also you can verify that Alice's original UTXO has been spent and no longer exists in UtxoStore.
 
 *Coming soon: A video walkthrough of the above demo.*
 
@@ -130,12 +126,14 @@ git fetch origin workshop:workshop
 git checkout workshop
 ```
 
-2. Cd into the base directory. Try running the test with: `cargo test -p utxo-runtime`. Notice all the compiler errors!
+2. Cd into the base directory. Try running the test with: `cargo test -p utxo-runtime`. Your first task: fix all the compiler errors!
+
 ```zsh
 ADD all the errors
 ```
 
-3. Once your code compiles, that `X/9` tests are failing!
+3. Once your code compiles, its now time to fix the `9` failing tests!
+
 ```zsh
 failures:
     utxo::tests::attack_by_double_counting_input
@@ -149,16 +147,17 @@ failures:
 
 4. Go to `utxo.rs` and read the workshop comments. Your goal is to edit the `check_transaction()` function & make all tests pass.
 
-*Hint: You may want to make them pass in the following order!*
-
 ```zsh
-[0] test utxo::tests::attack_with_empty_transactions ... ok
-[1] test utxo::tests::attack_by_double_counting_input ... ok
-[2] test utxo::tests::attack_by_double_generating_output ... ok
-[3] test utxo::tests::attack_with_invalid_signature ... ok
-[4] test utxo::tests::attack_by_permanently_sinking_outputs ... ok
-[5] test utxo::tests::attack_by_overflowing ... ok
-[6] test utxo::tests::attack_by_over_spending ... ok
+running 9 tests
+test utxo::tests::attack_by_overflowing_value ... ok
+test utxo::tests::attack_by_double_counting_input ... ok
+test utxo::tests::attack_by_double_generating_output ... ok
+test utxo::tests::attack_by_over_spending ... ok
+test utxo::tests::attack_with_empty_transactions ... ok
+test utxo::tests::attack_with_invalid_signature ... ok
+test utxo::tests::attack_by_permanently_sinking_outputs ... ok
+test utxo::tests::test_race_condition ... ok
+test utxo::tests::test_simple_transaction ... ok
 ```
 
 ## Advanced Workshop
