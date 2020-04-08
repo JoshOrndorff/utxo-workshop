@@ -1,32 +1,24 @@
 # UTXO on Substrate
 
-A UTXO chain implementation on Substrate. This repo is an updated implementation of the original [Substrate UXTO](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
+A UTXO chain implementation on Substrate, with two self guided workshops.Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
 
-For a high-level overview of the code, see the [official blog post](https://www.parity.io/utxo-on-substrate/) by Dmitriy. For a live demo, check out how to set up this repo with [Polkadot UI here](#Demo-Polkadot-UI).
+Substrate Version: `pre-v2.0`. For educational purposes only. 
 
-*Caveat: this implementation is being security reviewed and has outstanding issues. Do not use this implementation in production. It is for educational purposes only!*
+## Table of Contents
+- [Installation](#Installation): Setting up Rust & Substrate dependencies
 
-Please note that the code in this repository was upgraded to Substrate pre-v2.0 in January, 2020.
+- [UI Demo](#UI-Demo): Demoing this UTXO implementation in a simple UI
 
-## Project Structure
-- `master` branch contains the full solution (cheats).
-- `workshop` branch contains a UTXO boilerplate for the following workshop. The following tutorials will walk you through an implementation of UTXO on Substrate in workshop format. Feel free to host your own workshops in your local communities using this boilerplate!
+- [Beginner Workshop](#Beginner-Workshop): A self guided, 1 hour workshop that familiarizes you with Substrate basics
 
-## Workshop
+- [Advanced Workshop](#Advanced-Workshop): A self guided, 2 hour video tutorial, that teaches you how to build this UTXO blockchain from scratch
 
-**Estimated time**: 2 hours
+- [Helpful Resources](#Helpful-Resources): Documentation and references if you get stuck in the workshops
 
-Over this course of this workshop, you will learn:
-- How to implement the UTXO model on Substrate
-- How to secure UTXO transactions against attacks
-- How to seed genesis block with UTXOs
-- How to reward block validators in this environment
-- How to customize transaction pool logic on Substrate
-- Good coding patterns for working with Substrate & Rust
 
-> Note: This branch contains all the answers. Try not to peek!
+## Installation
 
-### 1. Install | Upgrade Rust
+### 1. Install or update Rust
 ```zsh
 curl https://sh.rustup.rs -sSf | sh
 
@@ -38,20 +30,22 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup update stable
 cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
-### Fork the workshop boilerplate
 
-Fork the workshop to create your own copy of it in your GitHub repository.
-Go https://github.com/substrate-developer-hub/utxo-workshop/fork and choose your GitHub repository username.
+### 2. Clone this workshop
 
-### Clone your fork of the workshop
-
-Clone your copy of the workshop codebase and switch to the `workshop` branch
+Clone your copy of the workshop codebase 
 
 ```zsh
-git clone https://github.com/<INSERT-YOUR-GITHUB-USERNAME>/utxo-workshop.git
-git fetch origin workshop:workshop
-git checkout workshop
+git clone https://github.com/substrate-developer-hub/utxo-workshop.git
+```
 
+## UI Demo
+
+In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js).
+
+
+1. Compile and build a release in dev mode
+```
 # Initialize your Wasm Build environment:
 ./scripts/init.sh
 
@@ -59,46 +53,36 @@ git checkout workshop
 cargo build --release
 ```
 
-## Demo Polkadot UI
+2. Start your node & start producing blocks:
+```zsh
+./target/release/utxo-workshop --dev
 
-You can use the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js) to exercise the capabilities of your UTXO blockchain to ensure that everything is working as expected. First, you will need ensure that any existing UTXO blockchain data has been removed and then build the UTXO blockchain:
+# If you already modified state, run this to purge the chain
+./target/release/utxo-workshop purge-chain --dev
+```
+
+3. In the console, notice the following helper printouts. In particular, notice a seed account `Alice` was already seeded with `100 UTXO` upon the genesis block. 
+
+Notice we've printed out a few more helper hashes for you, including the transaction encoding for if `Alice were to send Bob 50 UTXO`.
 
 ```zsh
-./target/release/utxo-workshop purge-chain --dev
-./target/release/utxo-workshop --dev
+TODO put printouts here
 ```
 
-You will notice that when you start the UTXO blockchain there is some output that is provided to help you with the following steps:
-```
-Initial UTXO Hash: 0x02f8ef6ff423559b1d07a31075d83c00883fbf02e054af102ab4a0ed8c50d2c5
-Transaction #1 TransactionOutput {
-	value: 100,
-	pubkey: 0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48,
-	salt: 0 },
-	Hash: 0x6cef4a2aa20b106a010cc0cdeebd7f48767372e9b68e37704d595c6abed6b2be
-Transaction #2 TransactionOutput {
-	value: 340282366920938463463374607431768211355,
-	pubkey: 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d,
-	salt: 0 },
-	Hash: 0x4478cdec8efc46049b9b5ef6f615255455c39b67e9a932314dc81a2d63bd9681
-```
+4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings). Make sure the client is connected to your local node by going to Settings > General, and selecting `Local Node` in the `remote node` dropdown.
 
-1. Visit [Polkadot JS](https://polkadot.js.org/apps/#/settings)
-  - Make sure you are using a browser that is compatible with local development or [consider running the UI locally](https://github.com/polkadot-js/apps)
+5. This UTXO project defines custom datatypes that the JS client cannot infer. Define the custom types in PolkadotJS by going to Settings > Developer tab and paste in the following JSON:
 
-2. Load the UTXO type definitions in Settings > Developer
 ```json
 {
   "Value": "u128",
-  "LockStatus": "u32",
   "TransactionInput": {
-    "parent_output": "Hash",
-    "signature": "Signature"
+    "outpoint": "Hash",
+    "sigscript": "Hash"
   },
   "TransactionOutput": {
     "value": "Value",
-    "pubkey": "Hash",
-    "salt": "u64"
+    "pubkey": "Hash"
   },
   "Transaction": {
     "inputs": "Vec<TransactionInput>",
@@ -107,64 +91,44 @@ Transaction #2 TransactionOutput {
 }
 ```
 
-3. Check that the genesis block contains 1 pre-configured UTXO for Alice as follows:
-```rust
-utxo::TransactionOutput {
-	value: utxo::Value::max_value(),
-	pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
-	salt: 0,
-}
-```
-  - Use the Polkadot JS Chain State app to query the `unspentOutputs` storage map from the `utxoModule`
-  - Query the storage map with the value `0x02f8ef6ff423559b1d07a31075d83c00883fbf02e054af102ab4a0ed8c50d2c5`, which is the hash of the above transaction
-  - You can [use the `subkey` tool to confirm that the public key associated with the initial UTXO belongs to Alice](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys)
+6. **Check that Alice already has 100 UTXO at genesis**. In `Chain State` > `Storage`, select `utxoModule`. Input the hash `xxxx`. Click the `+` notation to query blockchain state.
 
-4. Send a new UTXO transaction from Alice as follows: 
-```rust
-utxo::Transaction {
-	inputs: [ utxo::TransactionInput {
-		parent_output: 0x02f8ef6ff423559b1d07a31075d83c00883fbf02e054af102ab4a0ed8c50d2c5,
-		signature: sig_alice(parent_output)
-	}],
-	outputs: [ utxo::TransactionOutput {
-		value: 100,
-		pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Bob").as_slice()),
-		salt: 0,
-	}, utxo::TransactionOutput {
-		value: utxo::Value::max_value() - 100,
-		pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
-		salt: 0,
-	}]
-}
-```
-  - Use the Polkadot JS Extrinsics app to invoke the `execute` function from the `utxoModule`
-  - You will notice that the transaction's input is the pre-configured UTXO from the genesis block
-  - Use the Polkadot JS Toolbox app to generate the input's `signature` (make sure you are using Alice's account to generate this value)
-  - The public keys are provided for you via console output, which you can easily verify using the `subkey` tool
+Verify that: 
+ - UTXO value is `100`
+ - The pubkey indeed belongs to Alice (which is a default, hardcoded account). You use the [subkey](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys) tool to confirm that the pubkey indeed belongs to Alice
 
-5. Use the Chain State app to verify the following:
-  - The pre-configured UTXO from the genesis block (`0x02f8ef6ff423559b1d07a31075d83c00883fbf02e054af102ab4a0ed8c50d2c5`) no longer appears in the `unspentOutput` map
-  - The `unspentOutput` map has references to both of the outputs from the above transaction (the transaction hashes are provided for you via console output)
+7. **Spend Alice's UTXO, giving 50 to Bob.** In the `Extrinsics` tab, invoke the `spend` function from the `utxoModule`, using Alice as the transaction sender. Submit the following transaction hash `TODO` in which Alice sends Bob 50 utxo, burning the remaining amout. 
 
-## Challenge 1: UTXO Transaction Security
-UTXO validates transactions as follows: 
-- Check signatures
-- Check all inputs are unspent 
-- Check input == output value
-- Set Input to "spent"
+8. **Verify that your transaction succeeded**. In `Chain State`, look up the following UTXO hash: `TODO`.
+Also verify that the genesis utxo has been spent and no longer exists. 
 
-Similarly in our UTXO implementation, we need to prevent malicious users from sending bad transactions. `utxo.rs` contains some tests that simulate these malicious attacks. 
+Coming soon: A video walkthrough of the above. 
 
-Your challenge is to extend the implementation such that only secure transactions will go through.
+## Beginner Workshop
+**Estimated time**: 2 hours
 
-*Hint: Remember the check-before-state-change pattern!*
+In this workshop, you will: 
+- Get familiar with basic Rust and Substrate functionality
+- Prevent malicious users from sending bad UTXO transactions
+
+Your challenge is to fix the code such that: 
+1. The Rust compiler compiles without errors
+2. All tests in `utxo.rs` pass, ensuring secure transactions
 
 ### Directions
-*Make sure you have created a local copy of the remote `workshop` branch*
+1. Checkout the `workshop` branch. The `Master` branch has the solutions, so don't peek!
 
-1. Run cargo test: `cargo test -p utxo-runtime`
+```zsh
+git fetch origin workshop:workshop
+git checkout workshop
+```
 
-2. Notice that 7/8 tests are failing!
+2. Cd into the base directory. Try running the test with: `cargo test -p utxo-runtime`. Notice all the compiler errors!
+```zsh
+ADD all the errors
+```
+
+3. Once your code compiles, that `X/9` tests are failing!
 ```zsh
 failures:
     utxo::tests::attack_by_double_counting_input
@@ -176,7 +140,7 @@ failures:
     utxo::tests::attack_with_invalid_signature
 ```
 
-3. In `utxo.rs`, extend `check_transaction()` to make the following tests pass. 
+4. Go to `utxo.rs` and read the workshop comments. Your goal is to edit the `check_transaction()` function & make all tests pass.
 
 *Hint: You may want to make them pass in the following order!*
 
@@ -190,37 +154,19 @@ failures:
 [6] test utxo::tests::attack_by_over_spending ... ok
 ```
 
-## Challenge 2: Transaction Ordering
+## Advanced Workshop
+**VIDEO TUTORIALS COMING SOON**
 
-**Scenario**: Imagine a situation where Alice pays Bob via **transaction A**, then Bob uses his new utxo to pay Charlie, via **transaction B**. In short, B depends on the success of A. 
+**Estimated time**: 1 hour
 
-However, depending on network latency, the runtime might deliver **transaction B** to a node's transaction pool before delivering **transaction A**!
+In this workshop, you will implement this UTXO project from scratch and learn:
+- How to implement the UTXO model on Substrate
+- How to secure UTXO transactions against attacks
+- How to seed genesis block with UTXOs
+- How to reward block validators in this environment
+- How to customize transaction pool logic on Substrate
+- Good coding patterns for working with Substrate & Rust
 
-Your challenge is to overcome this race condition.
-
-A naive solution is to simply drop transaction B. But Substrate lets you implement transaction ordering logic. 
-
-In Substrate, you can specify the requirements for dispatching a transaction, e.g. wait for transaction A to arrive before dispatching B.
-
-Directions: 
-1. Read about a [transaction lifecycle](https://substrate.dev/docs/en/1.0/overview/transaction-lifecycle) in Substrate
-
-2. Read about [TaggedTransactionQueue](https://crates.parity.io/sp_transaction_pool/runtime_api/trait.TaggedTransactionQueue.html) and [TransactionValidity](https://crates.parity.io/sp_runtime/transaction_validity/type.TransactionValidity.html)
-
-3. Implement the correct transaction ordering logic such that transactions with pending dependencies can wait in the transaction pool until its requirements are satisfied.
-
-Hint: You can filter for specific types of transactions using the following syntax: 
-
-```rust
-if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
-    // Your implementation here
-}
-```
-
-## Challenge 3: Extensions
-You can try building the following extensions:
-- Give transactions in the pool a smarter longevity lifetime
-- Implement coinbase transactions, by letting users add value through work
 
 ## Helpful Resources
 - [Substrate documentation](http://crates.parity.io)

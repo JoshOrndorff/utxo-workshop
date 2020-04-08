@@ -122,7 +122,7 @@ impl<T: Trait> Module<T> {
         ensure!(!_transaction.inputs.is_empty(), "no inputs");
         ensure!(!_transaction.outputs.is_empty(), "no outputs");
 
-        {
+        { // nested scope so btreemaps resource gets freed
             let input_set: BTreeMap<_, ()> =_transaction.inputs.iter().map(|input| (input, ())).collect();
             ensure!(input_set.len() == _transaction.inputs.len(), "each input must only be used once");
         }
@@ -353,12 +353,12 @@ mod tests {
             
             let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
             transaction.inputs[0].sigscript = H512::from(alice_signature);
-            let transaction_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64)); 
+            let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64)); 
             
             assert_ok!(Utxo::spend(Origin::signed(0), transaction));
             assert!(!UtxoStore::exists(H256::from(GENESIS_UTXO)));
-            assert!(UtxoStore::exists(transaction_hash));
-            assert_eq!(50, UtxoStore::get(transaction_hash).unwrap().value);
+            assert!(UtxoStore::exists(new_utxo_hash));
+            assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
         });
     }
 

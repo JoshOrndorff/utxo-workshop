@@ -1,18 +1,17 @@
-use sp_core::{Pair, Public, sr25519};
+use utxo_runtime::utxo;
 use utxo_runtime::{
     AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
     SudoConfig, IndicesConfig, SystemConfig, WASM_BINARY, Signature
 };
+
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId};
 use grandpa_primitives::{AuthorityId as GrandpaId};
 use sc_service;
 use sp_runtime::traits::{Verify, IdentifyAccount, BlakeTwo256, Hash};
 
-use primitive_types::H256;
-use utxo_runtime::utxo;
-
-// Note this is the URL for the telemetry server
-//const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+use primitive_types::{H256, H512};
+use sp_core::{Pair, Public, sr25519};
+use codec::{Encode};
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::ChainSpec<GenesisConfig>;
@@ -123,11 +122,18 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool) -> GenesisConfig 
 {
-    let genesis_utxo = utxo::TransactionOutput {
-      value: utxo::Value::max_value(),
+    let alice_utxo = utxo::TransactionOutput {
+      value: 100 as utxo::Value,
       pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
     };
 
+    // This prints when your blockchain starts up for the first time
+    println!("============ HELPER INPUTS FOR THE UI DEMO ============");
+    println!("OUTPUT (Alice's UTXO Hash): 0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff\n");
+    println!("SIGSCRIPT (Alice Signature on a transaction where she spends 50 utxo on Bob): 0x6ceab99702c60b111c12c2867679c5555c00dcd4d6ab40efa01e3a65083bfb6c6f5c1ed3356d7141ec61894153b8ba7fb413bf1e990ed99ff6dee5da1b24fd83\n");
+    println!("PUBKEY (Bob's public key hash): 0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48\n");
+    println!("NEW UTXO HASH in UTXOStore onchain: 0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6\n";
+        
     GenesisConfig {
       system: Some(SystemConfig {
         code: WASM_BINARY.to_vec(),
@@ -150,7 +156,7 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
         authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
       }),
       utxo: Some(utxo::GenesisConfig {
-        genesis_utxo: vec![genesis_utxo],
+        genesis_utxo: vec![alice_utxo],
       }),
     }
 }
