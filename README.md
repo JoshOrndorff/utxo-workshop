@@ -2,7 +2,7 @@
 
 A UTXO chain implementation on Substrate, with two self-guided workshops.Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
 
-Substrate Version: `pre-v2.0`. For educational purposes only. 
+Substrate Version: `2.0.0-alpha.5`. For educational purposes only.
 
 ## Table of Contents
 - [Installation](#Installation): Setting up Rust & Substrate dependencies
@@ -33,7 +33,7 @@ cargo install --git https://github.com/alexcrichton/wasm-gc
 
 ### 2. Clone this workshop
 
-Clone your copy of the workshop codebase 
+Clone your copy of the workshop codebase
 
 ```zsh
 git clone https://github.com/substrate-developer-hub/utxo-workshop.git
@@ -41,9 +41,9 @@ git clone https://github.com/substrate-developer-hub/utxo-workshop.git
 
 ## UI Demo
 
-In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js). 
+In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js).
 
-The following demo takes you through a scenario where: 
+The following demo takes you through a scenario where:
 - Alice already owns a UTXO of value 100 upon genesis
 - Alice sends Bob a UTXO with value 50, tipping the remainder to validators
 
@@ -72,10 +72,12 @@ cargo build --release
 
 ```json
 {
+  "Address": "AccountId",
+  "LookupSource": "AccountId",
   "Value": "u128",
   "TransactionInput": {
     "outpoint": "Hash",
-    "sigscript": "Hash"
+    "sigscript": "H512"
   },
   "TransactionOutput": {
     "value": "Value",
@@ -88,13 +90,13 @@ cargo build --release
 }
 ```
 
-6. **Check that Alice already has 100 UTXO at genesis**. In `Chain State` > `Storage`, select `utxoModule`. Input the hash `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`. Click the `+` notation to query blockchain state.
+6. **Confirm that Alice already has 100 UTXO at genesis**. In `Chain State` > `Storage`, select `utxo`. Input the hash `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`. Click the `+` notation to query blockchain state.
 
-    Notice that: 
+    Notice that:
     - This UTXO has a value of `100`
     - This UTXO belongs to Alice's pubkey. You use the [subkey](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys) tool to confirm that the pubkey indeed belongs to Alice
 
-7. **Spend Alice's UTXO, giving 50 to Bob.** In the `Extrinsics` tab, invoke the `spend` function from the `utxoModule`, using Alice as the transaction sender. Use the following input parameters:
+7. **Spend Alice's UTXO, giving 50 to Bob.** In the `Extrinsics` tab, invoke the `spend` function from the `utxo` pallet, using Alice as the transaction sender. Use the following input parameters:
 
     - outpoint: `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`
     - sigscript: `0x6ceab99702c60b111c12c2867679c5555c00dcd4d6ab40efa01e3a65083bfb6c6f5c1ed3356d7141ec61894153b8ba7fb413bf1e990ed99ff6dee5da1b24fd83`
@@ -110,11 +112,11 @@ cargo build --release
 ## Beginner Workshop
 **Estimated time**: 2 hours
 
-In this workshop, you will: 
+In this workshop, you will:
 - Get familiar with basic Rust and Substrate functionality
 - Prevent malicious users from sending bad UTXO transactions
 
-Your challenge is to fix the code such that: 
+Your challenge is to fix the code such that:
 1. The Rust compiler compiles without errors
 2. All tests in `utxo.rs` pass, ensuring secure transactions
 
@@ -139,7 +141,7 @@ error[E0433]: failed to resolve: use of undeclared type or module `H512`
 ...
 ```
 
-3. Your first task: fix all the compiler errors! Hint: Look for the `TODO` comments in `utxo.rs` to see where to fix errors. 
+3. Your first task: fix all the compiler errors! Hint: Look for the `TODO` comments in `utxo.rs` to see where to fix errors.
 
 4. Once your code compiles, it's now time to fix the `8` failing tests!
 
