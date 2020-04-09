@@ -223,7 +223,7 @@ impl<T: Trait> Module<T> {
         }
     }
         
-    // Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.
+    /// Strips a transaction of its signatures by replacing the sigscript field of each input with ZERO-initialized fixed hash.
     pub fn get_simple_transaction(_transaction: &Transaction) -> Vec<u8> {//&'a [u8] {
         let mut trx = _transaction.clone();
         for input in trx.inputs.iter_mut() {
