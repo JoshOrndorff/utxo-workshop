@@ -16,10 +16,6 @@ substrate-build-script-utils = '2.0.0-alpha.5'
 path = '../runtime'
 version = '2.0.0-alpha.5'
 
-[dependencies.grandpa-primitives]
-package = 'sp-finality-grandpa'
-version = '2.0.0-alpha.5'
-
 [dependencies]
 futures = '0.3.1'
 log = '0.4.8'

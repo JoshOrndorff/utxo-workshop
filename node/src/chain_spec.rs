@@ -1,10 +1,9 @@
 use sp_core::{Pair, Public, sr25519, H256};
 use utxo_runtime::{
-	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
+	AccountId, AuraConfig, BalancesConfig, GenesisConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, UtxoConfig,
 };
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId};
-use grandpa_primitives::{AuthorityId as GrandpaId};
 use sc_service;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use utxo_runtime::utxo;
@@ -43,11 +42,8 @@ pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
 }
 
 /// Helper function to generate an authority key for Aura
-pub fn get_authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
-	(
-		get_from_seed::<AuraId>(s),
-		get_from_seed::<GrandpaId>(s),
-	)
+pub fn get_authority_keys_from_seed(s: &str) -> AuraId {
+	get_from_seed::<AuraId>(s),
 }
 
 impl Alternative {
@@ -130,7 +126,7 @@ impl Alternative {
 }
 
 fn testnet_genesis(
-	initial_authorities: Vec<(AuraId, GrandpaId)>,
+	initial_authorities: Vec<AuraId>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	endowed_utxos: Vec<sr25519::Public>,
@@ -153,9 +149,6 @@ fn testnet_genesis(
 		}),
 		aura: Some(AuraConfig {
 			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
-		}),
-		grandpa: Some(GrandpaConfig {
-			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
 		}),
 		sudo: Some(SudoConfig {
 			key: root_key,

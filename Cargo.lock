@@ -2640,7 +2640,6 @@ dependencies = [
  "sp-consensus-aura",
  "sp-consensus-pow",
  "sp-core",
- "sp-finality-grandpa",
  "sp-inherents",
  "sp-runtime",
  "sp-timestamp",
@@ -2824,42 +2823,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-finality-tracker"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "954b11ebb7de3f1ec5e23b37af4a2d1b7f04bc81b13cde2eb76abb4171300cfc"
-dependencies = [
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "parity-scale-codec",
- "serde",
- "sp-finality-tracker",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-grandpa"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2ede4c610644a485d9f78dfb4853a2b20efb752fe5ab0e75c78e239313304cb"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-finality-tracker",
- "pallet-session",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-finality-grandpa",
- "sp-runtime",
- "sp-staking",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-randomness-collective-flip"
 version = "2.0.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2884,12 +2847,10 @@ dependencies = [
  "impl-trait-for-tuples",
  "pallet-timestamp",
  "parity-scale-codec",
- "serde",
  "sp-io",
  "sp-runtime",
  "sp-staking",
  "sp-std",
- "sp-trie",
 ]
 
 [[package]]
@@ -5022,31 +4983,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-finality-grandpa"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9b4d96f0aa94da01d3110a20b54d8c35c419b193df6e9fa9127b2aa912afecb"
-dependencies = [
- "parity-scale-codec",
- "serde",
- "sp-api",
- "sp-application-crypto",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "sp-finality-tracker"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0be49e587e5667f747ca743ef468949535fae5640d26c236ac35e44abe595b15"
-dependencies = [
- "parity-scale-codec",
- "sp-inherents",
- "sp-std",
-]
-
-[[package]]
 name = "sp-inherents"
 version = "2.0.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6094,7 +6030,6 @@ dependencies = [
  "hex-literal",
  "pallet-aura",
  "pallet-balances",
- "pallet-grandpa",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
  "pallet-timestamp",
