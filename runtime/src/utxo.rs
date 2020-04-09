@@ -59,7 +59,7 @@ decl_storage! {
         /// All valid unspent transaction outputs are stored in this map.
         /// Initial set of UTXO is populated from the list stored in genesis.
         UtxoStore build(|config: &GenesisConfig| {
-            config.genesis_utxo
+            config.genesis_utxos
                 .iter()
                 .cloned()
                 .map(|u| (BlakeTwo256::hash_of(&u), u))
@@ -73,7 +73,7 @@ decl_storage! {
     }
 
     add_extra_genesis {
-        config(genesis_utxo): Vec<TransactionOutput>;
+        config(genesis_utxos): Vec<TransactionOutput>;
     }
 }
 
@@ -119,23 +119,23 @@ impl<T: Trait> Module<T> {
     /// Returns: Remaining reward value for validators
     /// If any errors, runtime execution will halt
     pub fn check_transaction(transaction: &Transaction) -> Result<Value, &'static str> {
-        ensure!(!_transaction.inputs.is_empty(), "no inputs");
-        ensure!(!_transaction.outputs.is_empty(), "no outputs");
+        ensure!(!transaction.inputs.is_empty(), "no inputs");
+        ensure!(!transaction.outputs.is_empty(), "no outputs");
 
         { // nested scope so btreemaps resource gets freed
-            let input_set: BTreeMap<_, ()> =_transaction.inputs.iter().map(|input| (input, ())).collect();
-            ensure!(input_set.len() == _transaction.inputs.len(), "each input must only be used once");
+            let input_set: BTreeMap<_, ()> =transaction.inputs.iter().map(|input| (input, ())).collect();
+            ensure!(input_set.len() == transaction.inputs.len(), "each input must only be used once");
         }
         {
-            let output_set: BTreeMap<_, ()> = _transaction.outputs.iter().map(|output| (output, ())).collect();
-            ensure!(output_set.len() == _transaction.outputs.len(), "each output must be defined only once");
+            let output_set: BTreeMap<_, ()> = transaction.outputs.iter().map(|output| (output, ())).collect();
+            ensure!(output_set.len() == transaction.outputs.len(), "each output must be defined only once");
         }
 
         let mut total_input: Value = 0;
         let mut total_output: Value = 0;
-        let simple_transaction = Self::get_simple_transaction(_transaction);
+        let simple_transaction = Self::get_simple_transaction(transaction);
 
-        for input in _transaction.inputs.iter() {
+        for input in transaction.inputs.iter() {
             let utxo = <UtxoStore>::get(&input.outpoint).ok_or("missing input utxo")?;
 
             ensure!(sp_io::crypto::sr25519_verify(
@@ -149,13 +149,13 @@ impl<T: Trait> Module<T> {
         }
 
         let index: u64 = 0;
-        for output in _transaction.outputs.iter() {
-            ensure!(output.value != 0, "output value must be nonzero");
+        for output in transaction.outputs.iter() {
+            ensure!(output.value > 0, "output value must be nonzero");
             
-            let hash = BlakeTwo256::hash_of(&(&_transaction.encode(), index));// BlakeTwo256::hash_of(output);
+            let hash = BlakeTwo256::hash_of(&(&transaction.encode(), index));
             index.checked_add(1).ok_or("output index overflow")?;
-            ensure!(!<UtxoStore>::exists(hash), "output already exists");
             
+            ensure!(!<UtxoStore>::exists(hash), "output already exists");
             total_output = total_output.checked_add(output.value).ok_or("output value overflow")?;
         }
 
@@ -223,9 +223,9 @@ impl<T: Trait> Module<T> {
         }
     }
         
-    /// Strips a transaction of its signatures by replacing the sigscript field of each input with ZERO-initialized fixed hash.
-    pub fn get_simple_transaction(_transaction: &Transaction) -> Vec<u8> {//&'a [u8] {
-        let mut trx = _transaction.clone();
+    // Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.
+    pub fn get_simple_transaction(transaction: &Transaction) -> Vec<u8> {//&'a [u8] {
+        let mut trx = transaction.clone();
         for input in trx.inputs.iter_mut() {
             input.sigscript = H512::zero();
         }
@@ -237,15 +237,14 @@ impl<T: Trait> Module<T> {
     /// Checks for race condition, if a certain trx is missing input_utxos in UtxoStore
     /// If None missing inputs: no race condition, gtg
     /// if Some(missing inputs): there are missing variables
-    pub fn has_race_condition(_transaction: &Transaction) -> Option<Vec<&H256>> {
+    pub fn get_missing_utxos(transaction: &Transaction) -> Vec<&H256> {
         let mut missing_utxos = Vec::new();
-        for input in _transaction.inputs.iter() {
-            if !<UtxoStore>::exists(&input.outpoint) {
-                missing_utxo.push(&input.outpoint);
+        for input in transaction.inputs.iter() {
+            if <UtxoStore>::get(&input.outpoint).is_none() {
+                missing_utxos.push(&input.outpoint);
             }
         }
-        if ! missing_utxo.is_empty() { return Some(missing_utxo) };
-        None
+        missing_utxos
     }
 }
 
@@ -315,7 +314,7 @@ mod tests {
 
         t.top.extend(
             GenesisConfig {
-                genesis_utxo: vec![
+                genesis_utxos: vec![
                     TransactionOutput {
                         value: 100,
                         pubkey: H256::from(alice_pub_key),
@@ -381,7 +380,7 @@ mod tests {
 
             let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
             transaction.inputs[0].sigscript = H512::from(alice_signature);
-            let missing_utxo_hash = Utxo::has_race_condition(&transaction).unwrap()[0];
+            let missing_utxo_hash = Utxo::get_missing_utxos(&transaction)[0];
             
             assert_eq!(missing_utxo_hash.as_fixed_bytes(), nonexistent_utxo.as_fixed_bytes());
         });

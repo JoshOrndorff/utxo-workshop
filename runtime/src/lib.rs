@@ -335,31 +335,20 @@ impl_runtime_apis! {
         }
     }
 
-    // Documentation is here: 
-    // https://substrate.dev/rustdocs/master/sp_transaction_pool/runtime_api/trait.TaggedTransactionQueue.html#method.validate_transaction
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             use sp_runtime::traits::Hash;
             
             // Extrinsics representing UTXO transaction need some special handling
             if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
-                // List of tags to require
-                let requires;
                 
-                match <utxo::Module<Runtime>>::has_race_condition(&transaction) {
+                let missing_utxos = <utxo::Module<Runtime>>::get_missing_utxos(&transaction);
 
-                    // All input UTXOs were found, so we consider input conditions to be met
-                    None => { requires = Vec::new(); }
-                    
-                    // Since some referred UTXOs were not found in the storage yet,
-                    // we tag current transaction as requiring those particular UTXOs
-                    Some(missing) => {
-                        requires = missing
-                            .iter()         // copies itself into a new vec
-                            .map(|hash| hash.as_fixed_bytes().to_vec())
-                            .collect();
-                    }
-                }
+                // Turn the missing utxo hashes into Require tags
+                let requires = missing_utxos
+                    .iter()
+                    .map(|hash| hash.as_fixed_bytes().to_vec())
+                    .collect();
 
                 // Output tags this transaction provides
                 let provides = transaction.outputs

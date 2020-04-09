@@ -57,15 +57,21 @@ impl Alternative {
             Alternative::Development => ChainSpec::from_genesis(
                 "Development",
                 "dev",
-                || testnet_genesis(vec![
+                || testnet_genesis(
+                  vec![
                     get_authority_keys_from_seed("Alice"),
-                ],
+                  ],
                 get_account_id_from_seed::<sr25519::Public>("Alice"),
                 vec![
                     get_account_id_from_seed::<sr25519::Public>("Alice"),
                     get_account_id_from_seed::<sr25519::Public>("Bob"),
                     get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
                     get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+                ],
+                // Genesis set of pubkeys that own UTXOs
+                vec![
+                    get_from_seed::<sr25519::Public>("Alice"),
+                    get_from_seed::<sr25519::Public>("Bob"),
                 ],
                 true),
                 vec![],
@@ -96,6 +102,11 @@ impl Alternative {
                     get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
                     get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
                 ],
+                // Genesis set of pubkeys that own UTXOs
+                vec![
+                    get_from_seed::<sr25519::Public>("Alice"),
+                    get_from_seed::<sr25519::Public>("Bob"),
+                ],
                 true),
                 vec![],
                 None,
@@ -116,16 +127,13 @@ impl Alternative {
 }
 
 // Dev mode genesis setup
-fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
+fn testnet_genesis(
+    initial_authorities: Vec<(AuraId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
+    endowed_utxos: Vec<sr25519::Public>,
     _enable_println: bool) -> GenesisConfig 
 {
-    let alice_utxo = utxo::TransactionOutput {
-      value: 100 as utxo::Value,
-      pubkey: H256::from_slice(get_from_seed::<sr25519::Public>("Alice").as_slice()),
-    };
-
     // This prints when your blockchain starts up for the first time
     println!("============ HELPER INPUTS FOR THE UI DEMO ============");
     println!("OUTPOINT (Alice's UTXO Hash): 0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff\n");
@@ -155,7 +163,14 @@ fn testnet_genesis(initial_authorities: Vec<(AuraId, GrandpaId)>,
         authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
       }),
       utxo: Some(utxo::GenesisConfig {
-        genesis_utxo: vec![alice_utxo],
+        genesis_utxos: endowed_utxos
+                      .iter()
+                      .map(|x|
+                        utxo::TransactionOutput {
+                          value: 100 as utxo::Value,
+                          pubkey: H256::from_slice(x.as_slice()),
+                      })
+                      .collect()
       }),
     }
 }
