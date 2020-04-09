@@ -1,9 +1,8 @@
 use sp_core::{Pair, Public, sr25519, H256};
 use utxo_runtime::{
-	AccountId, AuraConfig, BalancesConfig, GenesisConfig,
+	AccountId, BalancesConfig, GenesisConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, UtxoConfig,
 };
-use sp_consensus_aura::sr25519::{AuthorityId as AuraId};
 use sc_service;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use utxo_runtime::utxo;
@@ -41,11 +40,6 @@ pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Helper function to generate an authority key for Aura
-pub fn get_authority_keys_from_seed(s: &str) -> AuraId {
-	get_from_seed::<AuraId>(s)
-}
-
 impl Alternative {
 	/// Get an actual chain config from one of the alternatives.
 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
@@ -54,9 +48,6 @@ impl Alternative {
 				"Development",
 				"dev",
 				|| testnet_genesis(
-					vec![
-						get_authority_keys_from_seed("Alice"),
-					],
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					vec![
 						get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -81,10 +72,6 @@ impl Alternative {
 				"Local Testnet",
 				"local_testnet",
 				|| testnet_genesis(
-					vec![
-						get_authority_keys_from_seed("Alice"),
-						get_authority_keys_from_seed("Bob"),
-					],
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					vec![
 						get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -126,7 +113,6 @@ impl Alternative {
 }
 
 fn testnet_genesis(
-	initial_authorities: Vec<AuraId>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	endowed_utxos: Vec<sr25519::Public>,
@@ -146,9 +132,6 @@ fn testnet_genesis(
 		}),
 		balances: Some(BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
-		}),
-		aura: Some(AuraConfig {
-			authorities: initial_authorities,
 		}),
 		sudo: Some(SudoConfig {
 			key: root_key,

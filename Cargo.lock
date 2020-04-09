@@ -2629,7 +2629,6 @@ dependencies = [
  "sc-cli",
  "sc-client",
  "sc-client-api",
- "sc-consensus-aura",
  "sc-consensus-pow",
  "sc-executor",
  "sc-network",
@@ -2637,7 +2636,6 @@ dependencies = [
  "sc-transaction-pool",
  "sha3",
  "sp-consensus",
- "sp-consensus-aura",
  "sp-consensus-pow",
  "sp-core",
  "sp-inherents",
@@ -2785,28 +2783,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-aura"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c49caa853a7f6126d9874041bb650747dda0975007f240cffbd8dbb710e385d6"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-session",
- "pallet-timestamp",
- "parity-scale-codec",
- "serde",
- "sp-application-crypto",
- "sp-consensus-aura",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-timestamp",
-]
-
-[[package]]
 name = "pallet-balances"
 version = "2.0.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2833,23 +2809,6 @@ dependencies = [
  "parity-scale-codec",
  "safe-mix",
  "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-session"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c96ae32f6b03f10067ecd85eb1b686dff0217ac238bd93d2a0dd4460646b6c7"
-dependencies = [
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "pallet-timestamp",
- "parity-scale-codec",
- "sp-io",
- "sp-runtime",
- "sp-staking",
  "sp-std",
 ]
 
@@ -3965,38 +3924,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-consensus-aura"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1202aef261a68f30db9f57dfb013ec07fc79ba3df8cf9675ed17ee645445a004"
-dependencies = [
- "derive_more",
- "futures 0.3.4",
- "futures-timer 3.0.2",
- "log",
- "parity-scale-codec",
- "parking_lot 0.10.0",
- "sc-block-builder",
- "sc-client",
- "sc-client-api",
- "sc-consensus-slots",
- "sc-keystore",
- "sc-telemetry",
- "sp-api",
- "sp-application-crypto",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-aura",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
- "sp-timestamp",
- "sp-version",
-]
-
-[[package]]
 name = "sc-consensus-pow"
 version = "0.8.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4016,28 +3943,6 @@ dependencies = [
  "sp-inherents",
  "sp-runtime",
  "sp-timestamp",
-]
-
-[[package]]
-name = "sc-consensus-slots"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86e84cf67d0330f4ba843577475dddff55f2db0199d55c94a972640e44afcdce"
-dependencies = [
- "futures 0.3.4",
- "futures-timer 3.0.2",
- "log",
- "parity-scale-codec",
- "parking_lot 0.10.0",
- "sc-client-api",
- "sc-telemetry",
- "sp-api",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "sp-state-machine",
 ]
 
 [[package]]
@@ -4861,21 +4766,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-consensus-aura"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ee662e18c471a2a7abb56ddc32790aeb4cf348b67bfe4c5b320360be0aa7a72"
-dependencies = [
- "parity-scale-codec",
- "sp-api",
- "sp-application-crypto",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
- "sp-timestamp",
-]
-
-[[package]]
 name = "sp-consensus-babe"
 version = "0.8.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5124,17 +5014,6 @@ checksum = "9c8e48c0f293408a073609b7274a0ff9388802ae2482de094e36b0609cb38bf5"
 dependencies = [
  "sp-api",
  "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "sp-staking"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3e9996147f5b2572995e7377f2257e8ce207065e135115c3d3845838c1cbaa2"
-dependencies = [
- "parity-scale-codec",
  "sp-runtime",
  "sp-std",
 ]
@@ -6028,7 +5907,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex-literal",
- "pallet-aura",
  "pallet-balances",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
@@ -6038,7 +5916,6 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-block-builder",
- "sp-consensus-aura",
  "sp-core",
  "sp-inherents",
  "sp-io",
