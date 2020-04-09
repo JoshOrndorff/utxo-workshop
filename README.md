@@ -155,10 +155,10 @@ failures:
     utxo::tests::test_simple_transaction
 ```
 
-5. In `utxo.rs`, edit the logic in `check_transaction()` function to make all tests pass.
+5. In `utxo.rs`, edit the logic in `validate_transaction()` function to make all tests pass.
 
 ```zsh
-running 9 tests
+running 8 tests
 test utxo::tests::attack_by_overflowing_value ... ok
 test utxo::tests::attack_by_double_counting_input ... ok
 test utxo::tests::attack_by_double_generating_output ... ok
