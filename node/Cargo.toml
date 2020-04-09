@@ -31,48 +31,20 @@ sc-consensus-pow = '0.8.0-alpha.5'
 sp-consensus-pow = '0.8.0-alpha.5'
 sp-timestamp = '2.0.0-alpha.5'
 sc-basic-authorship = '0.8.0-alpha.5'
-
-[dependencies.sc-cli]
-version = '0.8.0-alpha.5'
-
-[dependencies.sc-client]
-version = '0.8.0-alpha.5'
-
-[dependencies.sc-client-api]
-version = '2.0.0-alpha.5'
-
-[dependencies.sc-consensus-aura]
-version = '0.8.0-alpha.5'
-
-[dependencies.sc-executor]
-version = '0.8.0-alpha.5'
-
-[dependencies.sc-network]
-version = '0.8.0-alpha.5'
-
-[dependencies.sc-service]
-version = '0.8.0-alpha.5'
-
-[dependencies.sc-transaction-pool]
-version = '2.0.0-alpha.5'
-
-[dependencies.sp-consensus]
-version = '0.8.0-alpha.5'
-
-[dependencies.sp-consensus-aura]
-version = '0.8.0-alpha.5'
-
-[dependencies.sp-core]
-version = '2.0.0-alpha.5'
-
-[dependencies.sp-inherents]
-version = '2.0.0-alpha.5'
-
-[dependencies.sp-runtime]
-version = '2.0.0-alpha.5'
-
-[dependencies.sp-transaction-pool]
-version = '2.0.0-alpha.5'
+sc-cli = '0.8.0-alpha.5'
+sc-client = '0.8.0-alpha.5'
+sc-client-api = '2.0.0-alpha.5'
+sc-consensus-aura = '0.8.0-alpha.5'
+sc-executor = '0.8.0-alpha.5'
+sc-network = '0.8.0-alpha.5'
+sc-service = '0.8.0-alpha.5'
+sc-transaction-pool = '2.0.0-alpha.5'
+sp-consensus = '0.8.0-alpha.5'
+sp-consensus-aura = '0.8.0-alpha.5'
+sp-core = '2.0.0-alpha.5'
+sp-inherents = '2.0.0-alpha.5'
+sp-runtime = '2.0.0-alpha.5'
+sp-transaction-pool = '2.0.0-alpha.5'
 
 [[bin]]
 name = 'node-template'
