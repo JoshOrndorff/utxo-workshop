@@ -7,7 +7,6 @@ use sp_consensus_aura::sr25519::{AuthorityId as AuraId};
 use grandpa_primitives::{AuthorityId as GrandpaId};
 use sc_service;
 use sp_runtime::traits::{Verify, IdentifyAccount};
-//TODO We shouldn't be using this type here. See testnet_genesis function for details
 use utxo_runtime::utxo;
 
 // Note this is the URL for the telemetry server
@@ -165,8 +164,6 @@ fn testnet_genesis(
 		  genesis_utxos: endowed_utxos
 			.iter()
 			.map(|x|
-				//TODO We shouldn't be using TransactionOutput here directly because it isn't
-				// expressable in json. Rather this should be a tuple
 				utxo::TransactionOutput {
 					value: 100 as utxo::Value,
 					pubkey: H256::from_slice(x.as_slice()),
