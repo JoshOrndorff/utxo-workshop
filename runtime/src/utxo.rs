@@ -240,7 +240,7 @@ impl<T: Trait> Module<T> {
     pub fn has_race_condition(_transaction: &Transaction) -> Option<Vec<&H256>> {
         let mut missing_utxo = Vec::new();
         for input in _transaction.inputs.iter() {
-            if <UtxoStore>::get(&input.outpoint).is_none() {
+            if !<UtxoStore>::exists(&input.outpoint) {
                 missing_utxo.push(&input.outpoint);
             }
         }
