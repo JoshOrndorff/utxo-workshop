@@ -1,7 +1,6 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use std::sync::Arc;
-use std::time::Duration;
 use sc_client::LongestChain;
 use sc_client_api::ExecutorProvider;
 use utxo_runtime::{self, opaque::Block, RuntimeApi};
@@ -9,8 +8,8 @@ use sc_service::{error::{Error as ServiceError}, AbstractService, Configuration,
 use sp_inherents::InherentDataProviders;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
-use sp_consensus_aura::sr25519::{AuthorityPair as AuraPair};
-use grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider, StorageAndProofProvider};
+use crate::pow::Sha3Algorithm;
+use sc_network::{config::DummyFinalityProofRequestBuilder};
 
 // Our native executor instance.
 native_executor_instance!(
@@ -19,15 +18,25 @@ native_executor_instance!(
 	utxo_runtime::native_version,
 );
 
+pub fn build_inherent_data_providers() -> Result<InherentDataProviders, ServiceError> {
+	let providers = InherentDataProviders::new();
+
+	providers
+		.register_provider(sp_timestamp::InherentDataProvider)
+		.map_err(Into::into)
+		.map_err(sp_consensus::error::Error::InherentData)?;
+
+	Ok(providers)
+}
+
 /// Starts a `ServiceBuilder` for a full service.
 ///
 /// Use this macro if you don't actually need the full service, but just the builder in order to
 /// be able to perform chain operations.
 macro_rules! new_full_start {
 	($config:expr) => {{
-		use std::sync::Arc;
 		let mut import_setup = None;
-		let inherent_data_providers = sp_inherents::InherentDataProviders::new();
+		let inherent_data_providers = crate::service::build_inherent_data_providers()?;
 
 		let builder = sc_service::ServiceBuilder::new_full::<
 			utxo_runtime::opaque::Block, utxo_runtime::RuntimeApi, crate::service::Executor
@@ -39,27 +48,24 @@ macro_rules! new_full_start {
 				let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
 				Ok(sc_transaction_pool::BasicPool::new(config, std::sync::Arc::new(pool_api)))
 			})?
-			.with_import_queue(|_config, client, mut select_chain, _transaction_pool| {
-				let select_chain = select_chain.take()
-					.ok_or_else(|| sc_service::Error::SelectChainRequired)?;
+			.with_import_queue(|_config, client, select_chain, _transaction_pool| {
 
-				let (grandpa_block_import, grandpa_link) =
-					grandpa::block_import(client.clone(), &(client.clone() as Arc<_>), select_chain)?;
-
-				let aura_block_import = sc_consensus_aura::AuraBlockImport::<_, _, _, AuraPair>::new(
-					grandpa_block_import.clone(), client.clone(),
+				let pow_block_import = sc_consensus_pow::PowBlockImport::new(
+					client.clone(),
+					client.clone(),
+					crate::pow::Sha3Algorithm,
+					0, // check inherents starting at block 0
+					select_chain,
+					inherent_data_providers.clone(),
 				);
 
-				let import_queue = sc_consensus_aura::import_queue::<_, _, _, AuraPair>(
-					sc_consensus_aura::slot_duration(&*client)?,
-					aura_block_import,
-					Some(Box::new(grandpa_block_import.clone())),
-					None,
-					client,
+				let import_queue = sc_consensus_pow::import_queue(
+					Box::new(pow_block_import.clone()),
+					crate::pow::Sha3Algorithm,
 					inherent_data_providers.clone(),
 				)?;
 
-				import_setup = Some((grandpa_block_import, grandpa_link));
+				import_setup = Some(pow_block_import);
 
 				Ok(import_queue)
 			})?;
@@ -73,9 +79,6 @@ pub fn new_full(config: Configuration)
 	-> Result<impl AbstractService, ServiceError>
 {
 	let is_authority = config.roles.is_authority();
-	let force_authoring = config.force_authoring;
-	let name = config.name.clone();
-	let disable_grandpa = config.disable_grandpa;
 
 	// sentry nodes announce themselves as authorities to the network
 	// and should run the same protocols authorities do, but it should
@@ -83,24 +86,19 @@ pub fn new_full(config: Configuration)
 	let participates_in_consensus = is_authority && !config.sentry_mode;
 
 	let (builder, mut import_setup, inherent_data_providers) = new_full_start!(config);
+	let block_import = import_setup.take()
+		.expect("Block Import is present for Full Services or setup failed before. qed");
 
-	let (block_import, grandpa_link) =
-		import_setup.take()
-			.expect("Link Half and Block Import are present for Full Services or setup failed before. qed");
-
-	let service = builder
-		.with_finality_proof_provider(|client, backend| {
-			// GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-			let provider = client as Arc<dyn StorageAndProofProvider<_, _>>;
-			Ok(Arc::new(GrandpaFinalityProofProvider::new(backend, provider)) as _)
-		})?
-		.build()?;
+	let service = builder.build()?;
 
 	if participates_in_consensus {
 		let proposer = sc_basic_authorship::ProposerFactory::new(
 			service.client(),
 			service.transaction_pool()
 		);
+
+		// The number of rounds of mining to try in a single call
+		let rounds = 500;
 
 		let client = service.client();
 		let select_chain = service.select_chain()
@@ -109,72 +107,21 @@ pub fn new_full(config: Configuration)
 		let can_author_with =
 			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
-		let aura = sc_consensus_aura::start_aura::<_, _, _, _, _, AuraPair, _, _, _>(
-			sc_consensus_aura::slot_duration(&*client)?,
+		sc_consensus_pow::start_mine(
+			Box::new(block_import),
 			client,
-			select_chain,
-			block_import,
+			Sha3Algorithm,
 			proposer,
+			None, // No preruntime digests
+			rounds,
 			service.network(),
+			std::time::Duration::new(2, 0),
+			// Choosing not to supply a select_chain means we will use the client's
+			// possibly-outdated metadata when fetching the block to mine on
+			Some(select_chain),
 			inherent_data_providers.clone(),
-			force_authoring,
-			service.keystore(),
 			can_author_with,
-		)?;
-
-		// the AURA authoring task is considered essential, i.e. if it
-		// fails we take down the service with it.
-		service.spawn_essential_task("aura", aura);
-	}
-
-	// if the node isn't actively participating in consensus then it doesn't
-	// need a keystore, regardless of which protocol we use below.
-	let keystore = if participates_in_consensus {
-		Some(service.keystore())
-	} else {
-		None
-	};
-
-	let grandpa_config = grandpa::Config {
-		// FIXME #1578 make this available through chainspec
-		gossip_duration: Duration::from_millis(333),
-		justification_period: 512,
-		name: Some(name),
-		observer_enabled: false,
-		keystore,
-		is_authority,
-	};
-
-	let enable_grandpa = !disable_grandpa;
-	if enable_grandpa {
-		// start the full GRANDPA voter
-		// NOTE: non-authorities could run the GRANDPA observer protocol, but at
-		// this point the full voter should provide better guarantees of block
-		// and vote data availability than the observer. The observer has not
-		// been tested extensively yet and having most nodes in a network run it
-		// could lead to finality stalls.
-		let grandpa_config = grandpa::GrandpaParams {
-			config: grandpa_config,
-			link: grandpa_link,
-			network: service.network(),
-			inherent_data_providers: inherent_data_providers.clone(),
-			telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
-			voting_rule: grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry: service.prometheus_registry()
-		};
-
-		// the GRANDPA voter task is considered infallible, i.e.
-		// if it fails we take down the service with it.
-		service.spawn_essential_task(
-			"grandpa-voter",
-			grandpa::run_grandpa_voter(grandpa_config)?
 		);
-	} else {
-		grandpa::setup_disabled_grandpa(
-			service.client(),
-			&inherent_data_providers,
-			service.network(),
-		)?;
 	}
 
 	Ok(service)
@@ -184,8 +131,6 @@ pub fn new_full(config: Configuration)
 pub fn new_light(config: Configuration)
 	-> Result<impl AbstractService, ServiceError>
 {
-	let inherent_data_providers = InherentDataProviders::new();
-
 	ServiceBuilder::new_light::<Block, RuntimeApi, Executor>(config)?
 		.with_select_chain(|_config, backend| {
 			Ok(LongestChain::new(backend.clone()))
@@ -200,35 +145,29 @@ pub fn new_light(config: Configuration)
 			);
 			Ok(pool)
 		})?
-		.with_import_queue_and_fprb(|_config, client, backend, fetcher, _select_chain, _tx_pool| {
-			let fetch_checker = fetcher
-				.map(|fetcher| fetcher.checker().clone())
-				.ok_or_else(|| "Trying to start light import queue without active fetch checker")?;
-			let grandpa_block_import = grandpa::light_block_import(
-				client.clone(),
-				backend,
-				&(client.clone() as Arc<_>),
-				Arc::new(fetch_checker),
-			)?;
-			let finality_proof_import = grandpa_block_import.clone();
+		.with_import_queue_and_fprb(|_config, client, _backend, _fetcher, select_chain, _tx_pool| {
 			let finality_proof_request_builder =
-				finality_proof_import.create_finality_proof_request_builder();
+				Box::new(DummyFinalityProofRequestBuilder::default()) as Box<_>;
 
-			let import_queue = sc_consensus_aura::import_queue::<_, _, _, AuraPair>(
-				sc_consensus_aura::slot_duration(&*client)?,
-				grandpa_block_import,
-				None,
-				Some(Box::new(finality_proof_import)),
+			let pow_block_import = sc_consensus_pow::PowBlockImport::new(
+				client.clone(),
 				client,
-				inherent_data_providers.clone(),
+				crate::pow::Sha3Algorithm,
+				0, // check_inherents_after,
+				select_chain,
+				build_inherent_data_providers()?,
+			);
+
+			let import_queue = sc_consensus_pow::import_queue(
+				Box::new(pow_block_import),
+				Sha3Algorithm,
+				build_inherent_data_providers()?,
 			)?;
 
 			Ok((import_queue, finality_proof_request_builder))
 		})?
-		.with_finality_proof_provider(|client, backend| {
-			// GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-			let provider = client as Arc<dyn StorageAndProofProvider<_, _>>;
-			Ok(Arc::new(GrandpaFinalityProofProvider::new(backend, provider)) as _)
-		})?
+		.with_finality_proof_provider(|_client, _backend|
+			Ok(Arc::new(()) as _)
+		)?
 		.build()
 }

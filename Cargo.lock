@@ -171,12 +171,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "assert_matches"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7deb0a829ca7bcfaf5da70b073a8d128619259a7be8216a355e23f00763059e5"
-
-[[package]]
 name = "async-std"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -883,20 +877,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0da54a593b34c71b889ee45f5b5bb900c74148c5f7f8c6a9479ee7899f69603c"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "finality-grandpa"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "024517816630be5204eba201e8d1d405042b1255a5e0e3f298b054fc24d59e1d"
-dependencies = [
- "futures 0.3.4",
- "futures-timer 2.0.2",
- "log",
- "num-traits",
- "parity-scale-codec",
- "parking_lot 0.9.0",
 ]
 
 [[package]]
@@ -2643,22 +2623,27 @@ version = "2.0.0-alpha.5"
 dependencies = [
  "futures 0.3.4",
  "log",
+ "parity-scale-codec",
+ "rand 0.7.3",
  "sc-basic-authorship",
  "sc-cli",
  "sc-client",
  "sc-client-api",
  "sc-consensus-aura",
+ "sc-consensus-pow",
  "sc-executor",
- "sc-finality-grandpa",
  "sc-network",
  "sc-service",
  "sc-transaction-pool",
+ "sha3",
  "sp-consensus",
  "sp-consensus-aura",
+ "sp-consensus-pow",
  "sp-core",
  "sp-finality-grandpa",
  "sp-inherents",
  "sp-runtime",
+ "sp-timestamp",
  "sp-transaction-pool",
  "structopt",
  "substrate-build-script-utils",
@@ -3443,7 +3428,7 @@ dependencies = [
  "rand_isaac",
  "rand_jitter",
  "rand_os",
- "rand_pcg",
+ "rand_pcg 0.1.2",
  "rand_xorshift",
  "winapi 0.3.8",
 ]
@@ -3459,6 +3444,7 @@ dependencies = [
  "rand_chacha 0.2.2",
  "rand_core 0.5.1",
  "rand_hc 0.2.0",
+ "rand_pcg 0.2.1",
 ]
 
 [[package]]
@@ -3565,6 +3551,15 @@ checksum = "abf9b09b01790cfe0364f52bf32995ea3c39f4d2dd011eac241d2914146d0b44"
 dependencies = [
  "autocfg 0.1.7",
  "rand_core 0.4.2",
+]
+
+[[package]]
+name = "rand_pcg"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16abd0c1b639e9eb4d7c50c0b8100b0d0f849be2349829c740fe8e6eb4816429"
+dependencies = [
+ "rand_core 0.5.1",
 ]
 
 [[package]]
@@ -4041,6 +4036,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "sc-consensus-pow"
+version = "0.8.0-alpha.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcc89066cf19325ccfefea8f0e1b63688b618e3f9e501d893f1667e751339ccc"
+dependencies = [
+ "derive_more",
+ "futures 0.3.4",
+ "log",
+ "parity-scale-codec",
+ "sc-client-api",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-pow",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-timestamp",
+]
+
+[[package]]
 name = "sc-consensus-slots"
 version = "0.8.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4121,42 +4138,6 @@ dependencies = [
  "sp-runtime-interface",
  "sp-wasm-interface",
  "wasmi",
-]
-
-[[package]]
-name = "sc-finality-grandpa"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aad8a1f0d03e8a7c3b1d8cd74050960365e347f739c131715f84f588dd051a4"
-dependencies = [
- "assert_matches",
- "finality-grandpa",
- "fork-tree",
- "futures 0.3.4",
- "futures-timer 3.0.2",
- "log",
- "parity-scale-codec",
- "parking_lot 0.10.0",
- "pin-project",
- "rand 0.7.3",
- "sc-block-builder",
- "sc-client",
- "sc-client-api",
- "sc-keystore",
- "sc-network",
- "sc-network-gossip",
- "sc-telemetry",
- "serde_json",
- "sp-api",
- "sp-arithmetic",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-finality-grandpa",
- "sp-finality-tracker",
- "sp-inherents",
- "sp-runtime",
- "substrate-prometheus-endpoint",
 ]
 
 [[package]]
@@ -4243,22 +4224,6 @@ dependencies = [
  "void",
  "wasm-timer",
  "zeroize",
-]
-
-[[package]]
-name = "sc-network-gossip"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eb8906bfd2d54f84fad8aba2f4303cff30f5596e7d4b90f97008d5477ea9ce4"
-dependencies = [
- "futures 0.3.4",
- "futures-timer 3.0.2",
- "libp2p",
- "log",
- "lru",
- "sc-network",
- "sp-runtime",
- "wasm-timer",
 ]
 
 [[package]]
@@ -4964,6 +4929,19 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "sp-consensus-pow"
+version = "0.8.0-alpha.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd22ad5525ddce3522e101a8c07e9566c375d6bcc044e79e9061611b0d87618a"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
