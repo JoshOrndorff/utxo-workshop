@@ -25,7 +25,7 @@ pub type Value = u128;
 pub struct Transaction {
     /// UTXOs to be used as inputs for current transaction
     pub inputs: Vec<TransactionInput>,
-    
+
     /// UTXOs to be created as a result of current transaction dispatch
     pub outputs: Vec<TransactionOutput>,
 }
@@ -36,8 +36,8 @@ pub struct Transaction {
 pub struct TransactionInput {
     /// Reference to an UTXO to be spent
     pub outpoint: H256,
-    
-    /// Proof that transaction owner is authorized to spend referred UTXO & 
+
+    /// Proof that transaction owner is authorized to spend referred UTXO &
     /// that the entire transaction is untampered
     pub sigscript: H512,
 }
@@ -87,8 +87,8 @@ decl_module! {
         pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
                                     // TransactionValidity{}
             let transaction_validity = Self::validate_transaction(&transaction)?;
-            
-            Self::update_storage(&transaction, transaction_validity.priority as u128)?;
+
+            Self::update_storage(&transaction, transaction_validity.priority as Value)?;
 
             Self::deposit_event(Event::TransactionSuccess(transaction));
 
@@ -118,7 +118,7 @@ impl<T: Trait> Module<T> {
 
     /// Check transaction for validity, errors, & race conditions
     /// Called by both transaction pool and runtime execution
-    /// 
+    ///
     /// Ensures that:
     /// - inputs and outputs are not empty
     /// - all inputs match to existing, unspent and unlocked outputs
@@ -176,7 +176,7 @@ impl<T: Trait> Module<T> {
             total_output = total_output.checked_add(output.value).ok_or("output value overflow")?;
             new_utxos.push(hash.as_fixed_bytes().to_vec());
         }
-        
+
         // If no race condition, check the math
         if missing_utxos.is_empty() {
             ensure!( total_input >= total_output, "output value must not exceed input value");
@@ -192,7 +192,7 @@ impl<T: Trait> Module<T> {
             propagate: true,
         })
     }
-    
+
     /// Update storage to reflect changes made by transaction
     /// Where each utxo key is a hash of the entire transaction and its order in the TransactionOutputs vector
     fn update_storage(transaction: &Transaction, reward: Value) -> DispatchResult {
@@ -238,7 +238,7 @@ impl<T: Trait> Module<T> {
                 pubkey: *authority,
             };
 
-            let hash = BlakeTwo256::hash_of(&(&utxo, 
+            let hash = BlakeTwo256::hash_of(&(&utxo,
                         <system::Module<T>>::block_number().saturated_into::<u64>()));
 
             if !<UtxoStore>::exists(hash) {
@@ -250,7 +250,7 @@ impl<T: Trait> Module<T> {
             }
         }
     }
-        
+
     // Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.
     pub fn get_simple_transaction(transaction: &Transaction) -> Vec<u8> {//&'a [u8] {
         let mut trx = transaction.clone();
@@ -328,11 +328,11 @@ mod tests {
 
     const ALICE_PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
     const GENESIS_UTXO: [u8; 32] = hex!("79eabcbd5ef6e958c6a7851b36da07691c19bda1835a08f875aa286911800999");
-    
+
     // This function basically just builds a genesis storage key/value store according to our desired mockup.
     // We start each test by giving Alice 100 utxo to start with.
     fn new_test_ext() -> sp_io::TestExternalities {
-    
+
         let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
         let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
 
@@ -354,7 +354,7 @@ mod tests {
             .unwrap()
             .top,
         );
-        
+
         // Print the values to get GENESIS_UTXO
         let mut ext = sp_io::TestExternalities::from(t);
         ext.register_extension(KeystoreExt(keystore));
@@ -377,11 +377,11 @@ mod tests {
                     pubkey: H256::from(alice_pub_key),
                 }],
             };
-            
+
             let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
             transaction.inputs[0].sigscript = H512::from(alice_signature);
-            let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64)); 
-            
+            let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64));
+
             assert_ok!(Utxo::spend(Origin::signed(0), transaction));
             assert!(!UtxoStore::exists(H256::from(GENESIS_UTXO)));
             assert!(UtxoStore::exists(new_utxo_hash));
@@ -409,7 +409,7 @@ mod tests {
     //         let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
     //         transaction.inputs[0].sigscript = H512::from(alice_signature);
     //         let missing_utxo_hash = Utxo::get_missing_utxos(&transaction)[0];
-            
+
     //         assert_eq!(missing_utxo_hash.as_fixed_bytes(), nonexistent_utxo.as_fixed_bytes());
     //     });
     // }
@@ -479,7 +479,7 @@ mod tests {
         new_test_ext().execute_with(|| {
 
             let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-            
+
             let mut transaction = Transaction {
                 inputs: vec![TransactionInput {
                     outpoint: H256::from(GENESIS_UTXO),
