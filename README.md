@@ -77,7 +77,7 @@ cargo build --release
   "Value": "u128",
   "TransactionInput": {
     "outpoint": "Hash",
-    "sigscript": "Hash"
+    "sigscript": "H512"
   },
   "TransactionOutput": {
     "value": "Value",
