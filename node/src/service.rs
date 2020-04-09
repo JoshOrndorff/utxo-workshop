@@ -49,11 +49,10 @@ macro_rules! new_full_start {
 				Ok(sc_transaction_pool::BasicPool::new(config, std::sync::Arc::new(pool_api)))
 			})?
 			.with_import_queue(|_config, client, select_chain, _transaction_pool| {
-
 				let pow_block_import = sc_consensus_pow::PowBlockImport::new(
 					client.clone(),
 					client.clone(),
-					crate::pow::Sha3Algorithm,
+					crate::pow::Sha3Algorithm::new(client.clone()),
 					0, // check inherents starting at block 0
 					select_chain,
 					inherent_data_providers.clone(),
@@ -61,7 +60,7 @@ macro_rules! new_full_start {
 
 				let import_queue = sc_consensus_pow::import_queue(
 					Box::new(pow_block_import.clone()),
-					crate::pow::Sha3Algorithm,
+					crate::pow::Sha3Algorithm::new(client.clone()),
 					inherent_data_providers.clone(),
 				)?;
 
@@ -110,7 +109,7 @@ pub fn new_full(config: Configuration)
 		sc_consensus_pow::start_mine(
 			Box::new(block_import),
 			client,
-			Sha3Algorithm,
+			Sha3Algorithm::new(client.clone()),
 			proposer,
 			None, // No preruntime digests
 			rounds,
@@ -152,7 +151,7 @@ pub fn new_light(config: Configuration)
 			let pow_block_import = sc_consensus_pow::PowBlockImport::new(
 				client.clone(),
 				client,
-				crate::pow::Sha3Algorithm,
+				crate::pow::Sha3Algorithm::new(client.clone()),
 				0, // check_inherents_after,
 				select_chain,
 				build_inherent_data_providers()?,
@@ -160,7 +159,7 @@ pub fn new_light(config: Configuration)
 
 			let import_queue = sc_consensus_pow::import_queue(
 				Box::new(pow_block_import),
-				Sha3Algorithm,
+				Sha3Algorithm::new(client.clone()),
 				build_inherent_data_providers()?,
 			)?;
 

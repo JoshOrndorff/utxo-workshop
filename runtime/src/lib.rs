@@ -9,7 +9,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_std::prelude::*;
-use sp_core::OpaqueMetadata;
+use sp_core::{OpaqueMetadata, U256};
 use sp_runtime::{
 	ApplyExtrinsicResult,
 	transaction_validity::{
@@ -348,6 +348,16 @@ impl_runtime_apis! {
 			encoded: Vec<u8>,
 		) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
+		}
+	}
+
+	impl sp_consensus_pow::DifficultyApi<Block, U256> for Runtime {
+		fn difficulty() -> U256 {
+			//TODO Crib the difficulty adjustment algorithm from Kulupu.
+			// For now it is still constant difficulty
+			U256::from(1_000_000)
+
+			// pow_params::Module::<Runtime>::difficulty()
 		}
 	}
 }

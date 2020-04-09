@@ -3,13 +3,26 @@ use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
 use parity_scale_codec::{Encode, Decode};
 use sc_consensus_pow::{PowAlgorithm, Error};
-use sp_consensus_pow::Seal as RawSeal;
+use sp_consensus_pow::{Seal as RawSeal, DifficultyApi};
 use sha3::{Sha3_256, Digest};
 use rand::{thread_rng, SeedableRng, rngs::SmallRng};
+use std::sync::Arc;
+use sp_blockchain::HeaderBackend;
+use sc_client_api::backend::AuxStore;
+use sp_api::ProvideRuntimeApi;
 
 /// A concrete PoW Algorithm that uses Sha3 hashing.
+/// Needs a reference to the client so it can grab the difficulty from the runtime.
 #[derive(Clone)]
-pub struct Sha3Algorithm;
+pub struct Sha3Algorithm<C> {
+	client: Arc<C>,
+}
+
+impl<C> Sha3Algorithm<C> {
+	pub fn new(client: Arc<C>) -> Self {
+		Self { client }
+	}
+}
 
 /// Determine whether the given hash satisfies the given difficulty.
 /// The test is done by multiplying the two together. If the product
@@ -53,13 +66,17 @@ impl Compute {
 }
 
 // Here we implement the general PowAlgorithm trait for our concrete Sha3Algorithm
-impl<B: BlockT<Hash=H256>> PowAlgorithm<B> for Sha3Algorithm {
+impl<B: BlockT<Hash=H256>, C> PowAlgorithm<B> for Sha3Algorithm<C> where
+	C: HeaderBackend<B> + AuxStore + ProvideRuntimeApi<B>,
+	C::Api: DifficultyApi<B, U256>,
+{
 	type Difficulty = U256;
 
-	fn difficulty(&self, _parent: &BlockId<B>) -> Result<Self::Difficulty, Error<B>> {
-		// This basic PoW uses a fixed difficulty.
-		// Raising this difficulty will make the block time slower.
-		Ok(U256::from(1000_000))
+	fn difficulty(&self, parent: &BlockId<B>) -> Result<Self::Difficulty, Error<B>> {
+		self.client.runtime_api().difficulty(parent)
+			.map_err(|e| sc_consensus_pow::Error::Environment(
+				format!("Fetching difficulty from runtime failed: {:?}", e)
+			))
 	}
 
 	fn verify(
