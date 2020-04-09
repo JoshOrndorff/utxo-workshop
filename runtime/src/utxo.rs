@@ -173,7 +173,7 @@ impl<T: Trait> Module<T> {
             .ok_or("Reward overflow")?;
         <RewardTotal>::put(new_total);
 
-        // Storing updated reward value
+        // Removing spent UTXOs
         for input in &transaction.inputs {
             <UtxoStore>::remove(input.outpoint);
         }
