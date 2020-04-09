@@ -166,7 +166,7 @@ impl<T: Trait> Module<T> {
                 ), "signature must be valid" );
                 total_input = total_input.checked_sub(input_utxo.value).ok_or("input value overflow")?;
             } else {
-                missing_utxos.push(input.outpoint.clone().as_fixed_bytes().to_vec()); // TODO is clone needed here?
+                missing_utxos.push(input.outpoint.clone().as_fixed_bytes().to_vec());
             }
         }
 
@@ -391,36 +391,6 @@ mod tests {
             assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
         });
     }
-
-    // #[test]
-    // fn test_race_condition() {
-    //     new_test_ext().execute_with(|| {
-    //         let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-    //         let nonexistent_utxo = H256::random();
-
-    //         let mut transaction = Transaction {
-    //             inputs: vec![TransactionInput {
-    //                 outpoint: nonexistent_utxo,
-    //                 sigscript: H512::zero(),
-    //             }],
-    //             outputs: vec![TransactionOutput {
-    //                 value: 50,
-    //                 pubkey: H256::from(alice_pub_key),
-    //             }],
-    //         };
-
-    //         let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
-    //         transaction.inputs[0].sigscript = H512::from(alice_signature);
-    //         let missing_utxo_hash = Utxo::get_missing_utxos(&transaction)[0];
-            
-    //         assert_eq!(missing_utxo_hash.as_fixed_bytes(), nonexistent_utxo.as_fixed_bytes());
-    //     });
-    // }
-
-    // Exercise 1: Fortify transactions against attacks
-    // ================================================
-    // The following tests simulate malicious UTXO transactions
-    // Implement the check_transaction() function to thwart such attacks
 
     #[test]
     fn attack_with_empty_transactions() {
