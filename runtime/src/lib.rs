@@ -14,7 +14,7 @@ use sp_runtime::{
     ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature
 };
 use sp_runtime::transaction_validity::{
-    InvalidTransaction, TransactionPriority, TransactionLongevity, TransactionValidity, TransactionValidityError, ValidTransaction
+    InvalidTransaction, TransactionValidity, TransactionValidityError
 };
 use sp_runtime::traits::{
     NumberFor, BlakeTwo256, Block as BlockT, StaticLookup, Verify, ConvertInto, IdentifyAccount
@@ -336,62 +336,18 @@ impl_runtime_apis! {
     }
 
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
-            use sp_runtime::traits::Hash;
-            
+        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {            
             // Extrinsics representing UTXO transaction need some special handling
-            if let Some(&utxo::Call::execute(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
-                // List of tags to require
-                let requires;
-
-                // Transaction priority to assign
-                let priority;
-                
-                match <utxo::Module<Runtime>>::check_transaction(&transaction) {
+            if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
+                match <utxo::Module<Runtime>>::validate_transaction(&transaction) {
                     // Transaction verification failed
                     Err(e) => {
                         sp_runtime::print(e);
                         return Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1)));
                     }
-
-                    // Transaction is valid and verified
-                    Ok(utxo::CheckInfo::Totals {input, output}) => {
-                        // All input UTXOs were found, so we consider input conditions to be met
-                        requires = Vec::new();
-
-                        // Priority is based on a transaction fee that is equal to the leftover value
-                        let max_priority = utxo::Value::from(TransactionPriority::max_value());
-                        priority = max_priority.min(input - output) as TransactionPriority;
-                    }
-                    
-                    // Transaction is missing inputs
-                    Ok(utxo::CheckInfo::MissingInputs(missing)) => {
-                        // Since some referred UTXOs were not found in the storage yet,
-                        // we tag current transaction as requiring those particular UTXOs
-                        requires = missing
-                            .iter()         // copies itself into a new vec
-                            .map(|hash| hash.as_fixed_bytes().to_vec())
-                            .collect();
-
-                        // Transaction could not be validated at this point,
-                        // so we have no sane way to calculate the priority    
-                        priority = 0;
-                    }
-                }
-
-                // Output tags this transaction provides
-                let provides = transaction.outputs
-                    .iter()
-                    .map(|output| BlakeTwo256::hash_of(output).as_fixed_bytes().to_vec())
-                    .collect();
-
-                return Ok(ValidTransaction {
-                    requires,
-                    provides,
-                    priority,
-                    longevity: TransactionLongevity::max_value(),
-                    propagate: true,
-                });
+                    // Race condition, or Transaction is good to go
+                    Ok(tv) => { return Ok(tv); }
+                }                
             }
 
             // Fall back to default logic for non UTXO::execute extrinsics
