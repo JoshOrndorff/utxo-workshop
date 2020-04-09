@@ -49,7 +49,7 @@ pub struct TransactionOutput {
     pub value: Value,
 
     /// Public key associated with this output. In order to spend this output
-	/// owner must provide a proof by hashing whole `TransactionOutput` and
+	/// owner must provide a proof by hashing the whole `Transaction` and
 	/// signing it with a corresponding private key.
     pub pubkey: H256,
 }
