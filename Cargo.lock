@@ -6113,6 +6113,7 @@ dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
+ "hex-literal",
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",

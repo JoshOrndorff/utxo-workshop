@@ -112,9 +112,12 @@ version = '2.0.0-alpha.5'
 default-features = false
 package = 'pallet-transaction-payment'
 version = '2.0.0-alpha.5'
-[build-dependencies.wasm-builder-runner]
-package = 'substrate-wasm-builder-runner'
-version = '1.0.5'
+
+[dev-dependencies]
+hex-literal = "0.2.1"
+
+[build-dependencies]
+substrate-wasm-builder-runner = '1.0.5'
 
 [features]
 default = ['std']

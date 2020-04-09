@@ -286,7 +286,6 @@ mod tests {
     use super::*;
 
     use frame_support::{assert_ok, assert_err, impl_outer_origin, parameter_types, weights::Weight};
-    use primitive_types::H256;
     use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
     use sp_core::testing::{KeyStore, SR25519};
     use sp_core::traits::KeystoreExt;
@@ -320,6 +319,9 @@ mod tests {
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
         type ModuleToIndex = ();
+        type AccountData = ();
+        type OnNewAccount = ();
+        type OnKilledAccount = ();
     }
     impl Trait for Test {
         type Event = ();
@@ -387,8 +389,8 @@ mod tests {
             let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64));
 
             assert_ok!(Utxo::spend(Origin::signed(0), transaction));
-            assert!(!UtxoStore::exists(H256::from(GENESIS_UTXO)));
-            assert!(UtxoStore::exists(new_utxo_hash));
+            assert!(!UtxoStore::contains_key(H256::from(GENESIS_UTXO)));
+            assert!(UtxoStore::contains_key(new_utxo_hash));
             assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
         });
     }
