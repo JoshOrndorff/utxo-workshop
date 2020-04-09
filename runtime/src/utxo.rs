@@ -5,7 +5,7 @@ use frame_support::{
     dispatch::{DispatchResult, Vec},
     ensure,
 };
-use primitive_types::{H256, H512};
+use sp_core::{H256, H512};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_core::sr25519::{Public, Signature};
@@ -59,13 +59,17 @@ decl_storage! {
     trait Store for Module<T: Trait> as Utxo {
         /// All valid unspent transaction outputs are stored in this map.
         /// Initial set of UTXO is populated from the list stored in genesis.
+        /// We use the identity hasher here because the cryptographic hashing is
+        /// done explicitly. TODO In the future we should remove the explicit hashing,
+        /// and use blake2_128_concat here. I'm deferring that so as not to break
+        /// the workshop inputs.
         UtxoStore build(|config: &GenesisConfig| {
             config.genesis_utxos
                 .iter()
                 .cloned()
                 .map(|u| (BlakeTwo256::hash_of(&u), u))
                 .collect::<Vec<_>>()
-        }): map H256 => Option<TransactionOutput>;
+        }): map hasher(identity) H256 => Option<TransactionOutput>;
 
         /// Total reward value to be redistributed among authorities.
         /// It is accumulated from transactions during block execution
@@ -172,7 +176,7 @@ impl<T: Trait> Module<T> {
             ensure!(output.value > 0, "output value must be nonzero");
             let hash = BlakeTwo256::hash_of(&(&transaction.encode(), output_index));
             output_index = output_index.checked_add(1).ok_or("output index overflow")?;
-            ensure!(!<UtxoStore>::exists(hash), "output already exists");
+            ensure!(!<UtxoStore>::contains_key(hash), "output already exists");
             total_output = total_output.checked_add(output.value).ok_or("output value overflow")?;
             new_utxos.push(hash.as_fixed_bytes().to_vec());
         }
@@ -241,7 +245,7 @@ impl<T: Trait> Module<T> {
             let hash = BlakeTwo256::hash_of(&(&utxo,
                         <system::Module<T>>::block_number().saturated_into::<u64>()));
 
-            if !<UtxoStore>::exists(hash) {
+            if !<UtxoStore>::contains_key(hash) {
                 <UtxoStore>::insert(hash, utxo);
                 sp_runtime::print("transaction reward sent to");
                 sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
