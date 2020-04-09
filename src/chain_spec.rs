@@ -134,7 +134,7 @@ fn testnet_genesis(
     endowed_utxos: Vec<sr25519::Public>,
     _enable_println: bool) -> GenesisConfig 
 {
-    // This prints when your blockchain starts up for the first time
+    // This prints upon creation of the genesis block
     println!("============ HELPER INPUTS FOR THE UI DEMO ============");
     println!("OUTPOINT (Alice's UTXO Hash): 0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff\n");
     println!("SIGSCRIPT (Alice Signature on a transaction where she spends 50 utxo on Bob): 0x6ceab99702c60b111c12c2867679c5555c00dcd4d6ab40efa01e3a65083bfb6c6f5c1ed3356d7141ec61894153b8ba7fb413bf1e990ed99ff6dee5da1b24fd83\n");
