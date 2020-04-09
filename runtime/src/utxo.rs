@@ -238,7 +238,7 @@ impl<T: Trait> Module<T> {
     /// If None missing inputs: no race condition, gtg
     /// if Some(missing inputs): there are missing variables
     pub fn has_race_condition(_transaction: &Transaction) -> Option<Vec<&H256>> {
-        let mut missing_utxo = Vec::new();
+        let mut missing_utxos = Vec::new();
         for input in _transaction.inputs.iter() {
             if !<UtxoStore>::exists(&input.outpoint) {
                 missing_utxo.push(&input.outpoint);
