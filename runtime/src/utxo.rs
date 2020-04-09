@@ -178,7 +178,7 @@ impl<T: Trait> Module<T> {
             <UtxoStore>::remove(input.outpoint);
         }
 
-        // Add new UTXO to be used by future transactions
+        // Add new UTXOs to be used by future transactions
         let index: u64 = 0;
         for output in &transaction.outputs {
             let hash = BlakeTwo256::hash_of(&(&transaction.encode(), index));
