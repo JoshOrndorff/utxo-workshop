@@ -14,7 +14,7 @@ use sp_runtime::{
     ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature
 };
 use sp_runtime::transaction_validity::{
-    TransactionPriority, TransactionLongevity, TransactionValidity, ValidTransaction
+    InvalidTransaction, TransactionValidity, TransactionValidityError
 };
 use sp_runtime::traits::{
     NumberFor, BlakeTwo256, Block as BlockT, StaticLookup, Verify, ConvertInto, IdentifyAccount
@@ -336,33 +336,18 @@ impl_runtime_apis! {
     }
 
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
-            use sp_runtime::traits::Hash;
-            
+        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {            
             // Extrinsics representing UTXO transaction need some special handling
             if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<utxo::Module<Runtime>, Runtime>::is_sub_type(&tx.function) {
-                
-                let missing_utxos = <utxo::Module<Runtime>>::get_missing_utxos(&transaction);
-
-                // Turn the missing utxo hashes into Require tags
-                let requires = missing_utxos
-                    .iter()
-                    .map(|hash| hash.as_fixed_bytes().to_vec())
-                    .collect();
-
-                // Output tags this transaction provides
-                let provides = transaction.outputs
-                    .iter()
-                    .map(|output| BlakeTwo256::hash_of(output).as_fixed_bytes().to_vec())
-                    .collect();
-
-                return Ok(ValidTransaction {
-                    requires,
-                    provides,
-                    priority: TransactionPriority::max_value(),
-                    longevity: TransactionLongevity::max_value(),
-                    propagate: true,
-                });
+                match <utxo::Module<Runtime>>::validate_transaction(&transaction) {
+                    // Transaction verification failed
+                    Err(e) => {
+                        sp_runtime::print(e);
+                        return Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1)));
+                    }
+                    // Race condition, or Transaction is good to go
+                    Ok(tv) => { return Ok(tv); }
+                }                
             }
 
             // Fall back to default logic for non UTXO::execute extrinsics
