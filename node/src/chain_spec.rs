@@ -43,7 +43,7 @@ pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
 
 /// Helper function to generate an authority key for Aura
 pub fn get_authority_keys_from_seed(s: &str) -> AuraId {
-	get_from_seed::<AuraId>(s),
+	get_from_seed::<AuraId>(s)
 }
 
 impl Alternative {
@@ -148,7 +148,7 @@ fn testnet_genesis(
 			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
 		}),
 		aura: Some(AuraConfig {
-			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
+			authorities: initial_authorities,
 		}),
 		sudo: Some(SudoConfig {
 			key: root_key,

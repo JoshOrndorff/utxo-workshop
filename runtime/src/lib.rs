@@ -70,6 +70,9 @@ pub type DigestItem = generic::DigestItem<Hash>;
 /// The UTXO pallet in `./utxo.rs`
 pub mod utxo;
 
+/// The Block author trait in `./block_author.rs`
+pub mod block_author;
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -222,6 +225,10 @@ impl sudo::Trait for Runtime {
 
 impl utxo::Trait for Runtime {
 	type Event = Event;
+	// TODO Actually write an inherent to detect the block author.
+	// In the meantime, I'm just using () which always returns `None`
+	// So rewards will always be wasted.
+	type BlockAuthor = ();
 }
 
 construct_runtime!(
