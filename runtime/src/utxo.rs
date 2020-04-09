@@ -182,8 +182,8 @@ impl<T: Trait> Module<T> {
         let index: u64 = 0;
         for output in &transaction.outputs {
             let hash = BlakeTwo256::hash_of(&(&transaction.encode(), index));
-            <UtxoStore>::insert(hash, output);
             index.checked_add(1).ok_or("output index overflow")?;
+            <UtxoStore>::insert(hash, output);
         }
 
         Ok(())
