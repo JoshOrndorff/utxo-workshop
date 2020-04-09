@@ -118,7 +118,7 @@ impl<T: Trait> Module<T> {
     /// Check transaction for validity.
     /// Returns: Remaining reward value for validators
     /// If any errors, runtime execution will halt
-    pub fn check_transaction(_transaction: &Transaction) -> Result<Value, &'static str> {
+    pub fn check_transaction(transaction: &Transaction) -> Result<Value, &'static str> {
         ensure!(!_transaction.inputs.is_empty(), "no inputs");
         ensure!(!_transaction.outputs.is_empty(), "no outputs");
 
