@@ -266,7 +266,7 @@ construct_runtime!(
 		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		DifficultyAdjustment: difficulty::{Module, Storage, Config},
 		BlockAuthor: block_author::{Module, Call, Storage, Inherent},
-		Utxo: utxo::{Module, Call, Storage, Config, Event},
+		Utxo: utxo::{Module, Call, Storage, Event},
 	}
 );
 
@@ -340,29 +340,6 @@ impl_runtime_apis! {
 			// This runtime does not have a randomness source so we jsut return the default Hash
 			// This should certainly not be treated as random.
 			Default::default()
-		}
-	}
-
-	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-		fn validate_transaction(
-			source: TransactionSource,
-			tx: <Block as BlockT>::Extrinsic,
-		) -> TransactionValidity {
-			// Extrinsics representing UTXO transaction need some special handling
-			if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<<Utxo as Callable<Runtime>>::Call>::is_sub_type(&tx.function) {
-				match Utxo::validate_transaction(&transaction) {
-					// Transaction verification failed
-					Err(e) => {
-						sp_runtime::print(e);
-						return Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1)));
-					}
-					// Race condition, or Transaction is good to go
-					Ok(tv) => { return Ok(tv); }
-				}
-			}
-
-			// Fall back to default logic for non UTXO-spending extrinsics
-			Executive::validate_transaction(source, tx)
 		}
 	}
 
