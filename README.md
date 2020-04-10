@@ -174,18 +174,23 @@ test utxo::tests::test_simple_transaction ... ok
 ## Advanced Workshop
 **VIDEO TUTORIALS COMING SOON**
 
-**Estimated time**: 1 hour
+**Estimated time**: 2 hours
 
 In this workshop, you will implement this UTXO project from scratch using Substrate.
 
 You will learn:
-- How to implement the UTXO model on Substrate
+- How to implement the UTXO ledger model on Substrate
 - How to secure UTXO transactions against attacks
 - How to seed genesis block with UTXOs
 - How to reward block validators in this environment
 - How to customize transaction pool logic on Substrate
-- Good coding patterns for working with Substrate & Rust
+- Good coding patterns for working with Substrate & Rust, including testing and refactoring
 
+Checkout the `startercode` branch to get the boilerplate for this workshop.
+```zsh
+git fetch origin startercode:startercode
+git checkout startercode
+```
 
 ## Helpful Resources
 - [Substrate documentation](http://crates.parity.io)
