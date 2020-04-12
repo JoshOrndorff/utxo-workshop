@@ -14,6 +14,7 @@ use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_runtime::transaction_validity::{TransactionLongevity, ValidTransaction};
 use super::block_author::BlockAuthor;
+use super::issuance::Issuance;
 
 pub trait Trait: system::Trait {
 	/// The ubiquitous Event type
@@ -21,6 +22,9 @@ pub trait Trait: system::Trait {
 
 	/// A source to determine the block author
 	type BlockAuthor: BlockAuthor;
+
+	/// A source to determine the issuance portion of the block reward
+	type Issuance: Issuance<<Self as system::Trait>::BlockNumber, Value>;
 }
 
 pub type Value = u128;
@@ -230,7 +234,7 @@ impl<T: Trait> Module<T> {
 
 	/// Redistribute combined reward value to block Author
 	fn disperse_reward(author: &Public) {
-		let reward = <RewardTotal>::take();
+		let reward = RewardTotal::take() + T::Issuance::issuance(system::Module::<T>::block_number());
 
 		let utxo = TransactionOutput {
 			value: reward,

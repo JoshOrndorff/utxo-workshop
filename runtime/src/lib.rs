@@ -69,8 +69,11 @@ pub type DigestItem = generic::DigestItem<Hash>;
 /// The UTXO pallet in `./utxo.rs`
 pub mod utxo;
 
-/// The Block author trait in `./block_author.rs`
+/// The BlockAuthor trait in `./block_author.rs`
 pub mod block_author;
+
+/// The Issuance trait in `./issuance.rs`
+pub mod issuance;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -223,6 +226,9 @@ impl utxo::Trait for Runtime {
 	// In the meantime, I'm just using () which always returns `None`
 	// So rewards will always be wasted.
 	type BlockAuthor = ();
+
+	// TODO implement issuance in an interesting way. For now it is 0
+	type Issuance = ();
 }
 
 construct_runtime!(
