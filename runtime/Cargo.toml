@@ -121,6 +121,7 @@ std = [
     'serde',
     'sp-api/std',
     'sp-block-builder/std',
+    'sp-consensus-pow/std',
     'sp-core/std',
     'sp-inherents/std',
     'sp-io/std',
