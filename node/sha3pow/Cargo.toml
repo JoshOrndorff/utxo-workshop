@@ -1,20 +1,12 @@
 [package]
 authors = ['Anonymous']
-build = 'build.rs'
 edition = '2018'
-homepage = 'https://substrate.dev'
-license = 'Unlicense'
-name = 'node-template'
-repository = 'https://github.com/paritytech/substrate/'
+name = 'sha3pow'
 version = '2.0.0-alpha.5'
 
 [build-dependencies]
 vergen = '3.0.4'
 substrate-build-script-utils = '2.0.0-alpha.5'
-
-[dependencies.utxo-runtime]
-path = '../runtime'
-version = '2.0.0-alpha.5'
 
 [dependencies]
 futures = '0.3.1'
@@ -41,7 +33,3 @@ sp-inherents = '2.0.0-alpha.5'
 sp-runtime = '2.0.0-alpha.5'
 sp-timestamp = '2.0.0-alpha.5'
 sp-transaction-pool = '2.0.0-alpha.5'
-sha3pow = {path = './sha3pow'}
-
-[[bin]]
-name = 'node-template'

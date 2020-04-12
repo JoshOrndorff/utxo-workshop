@@ -2635,6 +2635,7 @@ dependencies = [
  "sc-service",
  "sc-transaction-pool",
  "sha3",
+ "sha3pow",
  "sp-api",
  "sp-blockchain",
  "sp-consensus",
@@ -4514,6 +4515,38 @@ dependencies = [
  "digest",
  "keccak",
  "opaque-debug",
+]
+
+[[package]]
+name = "sha3pow"
+version = "2.0.0-alpha.5"
+dependencies = [
+ "futures 0.3.4",
+ "log",
+ "parity-scale-codec",
+ "rand 0.7.3",
+ "sc-basic-authorship",
+ "sc-cli",
+ "sc-client",
+ "sc-client-api",
+ "sc-consensus-pow",
+ "sc-executor",
+ "sc-network",
+ "sc-service",
+ "sc-transaction-pool",
+ "sha3",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-pow",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-timestamp",
+ "sp-transaction-pool",
+ "structopt",
+ "substrate-build-script-utils",
+ "vergen",
 ]
 
 [[package]]
