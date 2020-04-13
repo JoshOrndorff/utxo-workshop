@@ -5,5 +5,5 @@ panic = 'unwind'
 members = [
     'node',
     'runtime',
-		'node/sha3pow',
+    'node/sha3pow',
 ]
