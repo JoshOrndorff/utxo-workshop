@@ -31,11 +31,11 @@ decl_module! {
 	}
 }
 
-decl_event!(
+decl_event! {
 	pub enum Event {
 
 	}
-);
+}
 
 /// Tests for this module
 #[cfg(test)]
