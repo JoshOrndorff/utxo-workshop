@@ -125,8 +125,8 @@ decl_event!(
 	pub enum Event {
 		/// Transaction was executed successfully
 		TransactionSuccess(Transaction),
-		/// Rewards were issued
-		RewardsIssued(H256),
+		/// Rewards were issued. Amount, UTXO hash.
+		RewardsIssued(Value, H256),
 		/// Rewards were wasted
 		RewardsWasted,
 	}
@@ -254,7 +254,7 @@ impl<T: Trait> Module<T> {
 		<UtxoStore>::insert(hash, utxo);
 		sp_runtime::print("transaction reward sent to");
 		sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
-		Self::deposit_event(Event::RewardsIssued(hash));
+		Self::deposit_event(Event::RewardsIssued(reward, hash));
 	}
 
 	// Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.

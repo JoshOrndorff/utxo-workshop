@@ -12,3 +12,28 @@ impl Issuance<u32, u128> for () {
 		0
 	}
 }
+
+/// A type that provides block issuance according to bitcoin's rules
+/// Initial issuance is 50 / block
+/// Issuance is cut in half every 210,000 blocks
+/// cribbed from github.com/Bitcoin-ABC/bitcoin-abc/blob/9c7b12e6f128a59423f4de3d6d4b5231ebe9aac2/src/validation.cpp#L1007
+pub struct BitcoinHalving;
+
+const HALVING_INTERVAL: u32 = 210_000;
+const INITIAL_ISSUANCE: u32 = 50;
+
+//TODO Do I need to account for decimal places here?
+impl Issuance<u32, u128> for BitcoinHalving {
+
+	fn issuance(block: u32) -> u128 {
+		let halvings = block / HALVING_INTERVAL;
+		// Force block reward to zero when right shift is undefined.
+		if halvings >= 64 {
+			return 0;
+		}
+
+		// Subsidy is cut in half every 210,000 blocks which will occur
+		// approximately every 4 years.
+		(INITIAL_ISSUANCE >> halvings).into()
+	}
+}

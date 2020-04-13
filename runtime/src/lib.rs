@@ -235,9 +235,7 @@ impl block_author::Trait for Runtime {}
 impl utxo::Trait for Runtime {
 	type Event = Event;
 	type BlockAuthor = BlockAuthor;
-
-	// TODO implement issuance in an interesting way. For now it is 0
-	type Issuance = ();
+	type Issuance = issuance::BitcoinHalving;
 }
 
 construct_runtime!(
