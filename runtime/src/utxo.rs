@@ -251,15 +251,10 @@ impl<T: Trait> Module<T> {
 					<system::Module<T>>::block_number().saturated_into::<u64>()));
 
 		//TODO consider removing these `print`s
-		if !<UtxoStore>::contains_key(hash) {
-			<UtxoStore>::insert(hash, utxo);
-			sp_runtime::print("transaction reward sent to");
-			sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
-			Self::deposit_event(Event::RewardsIssued(hash));
-		} else {
-			sp_runtime::print("transaction reward wasted due to hash collision");
-			Self::deposit_event(Event::RewardsWasted)
-		}
+		<UtxoStore>::insert(hash, utxo);
+		sp_runtime::print("transaction reward sent to");
+		sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
+		Self::deposit_event(Event::RewardsIssued(hash));
 	}
 
 	// Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.

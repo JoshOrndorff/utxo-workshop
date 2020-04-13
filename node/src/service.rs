@@ -11,6 +11,8 @@ pub use sc_executor::NativeExecutor;
 use sha3pow::Sha3Algorithm;
 use sc_network::{config::DummyFinalityProofRequestBuilder};
 use core::clone::Clone;
+use sp_core::H256;
+use parity_scale_codec::Encode;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -24,6 +26,17 @@ pub fn build_inherent_data_providers() -> Result<InherentDataProviders, ServiceE
 
 	providers
 		.register_provider(sp_timestamp::InherentDataProvider)
+		.map_err(Into::into)
+		.map_err(sp_consensus::error::Error::InherentData)?;
+
+	providers
+		.register_provider(utxo_runtime::block_author::InherentDataProvider(
+			// TODO get author info from CLI
+			// Use bogus author key for now.
+			// H256::zero()
+			vec![0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0].encode()
+			//.expect("Valid author is provided in CLI"))
+		))
 		.map_err(Into::into)
 		.map_err(sp_consensus::error::Error::InherentData)?;
 
