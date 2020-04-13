@@ -68,7 +68,7 @@ cargo build --release
 
 4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings), making sure the client is connected to your local node by going to Settings > General, and selecting `Local Node` in the `remote node` dropdown.
 
-5. **Declare the custom datatypes in PolkadotJS**, since the JS client cannot authomatically infer this from the UTXO module. Go to Settings > Developer tab and paste in the following JSON:
+5. **Declare the custom datatypes in PolkadotJS**, since the JS client cannot automatically infer this from the UTXO module. Go to Settings > Developer tab and paste in the following JSON:
 
 ```json
 {
@@ -86,6 +86,11 @@ cargo build --release
   "Transaction": {
     "inputs": "Vec<TransactionInput>",
     "outputs": "Vec<TransactionOutput>"
+  },
+  "Difficulty": "U256",
+  "DifficultyAndTimestamp": {
+    "difficulty": "Difficulty",
+    "timestamp": "Moment"
   }
 }
 ```

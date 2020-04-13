@@ -1,6 +1,6 @@
 use sp_core::{Pair, Public, sr25519, H256};
 use utxo_runtime::{
-	AccountId, BalancesConfig, GenesisConfig,
+	AccountId, BalancesConfig, GenesisConfig, DifficultyAdjustmentConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, UtxoConfig,
 };
 use sc_service;
@@ -135,6 +135,9 @@ fn testnet_genesis(
 		}),
 		sudo: Some(SudoConfig {
 			key: root_key,
+		}),
+		difficulty: Some(DifficultyAdjustmentConfig {
+			initial_difficulty: 3_000_000.into(),
 		}),
 		utxo: Some(UtxoConfig {
 		  genesis_utxos: endowed_utxos

@@ -223,6 +223,22 @@ impl sudo::Trait for Runtime {
 	type Call = Call;
 }
 
+parameter_types! {
+	pub const TargetBlockTime: u128 = 3_000;
+	pub const DampFactor: u128 = 3;
+	pub const ClampFactor: u128 = 2;
+	pub const MaxDifficulty: u128 = u128::max_value();
+}
+
+impl difficulty::Trait for Runtime {
+	type TargetBlockTime = TargetBlockTime;
+	type DampFactor = DampFactor;
+	type ClampFactor = ClampFactor;
+	type MaxDifficulty = MaxDifficulty;
+	// Setting min difficulty to damp factor per recommendation
+	type MinDifficulty = DampFactor;
+}
+
 impl utxo::Trait for Runtime {
 	type Event = Event;
 	// TODO Actually write an inherent to detect the block author.
@@ -246,6 +262,7 @@ construct_runtime!(
 		Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: transaction_payment::{Module, Storage},
 		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
+		DifficultyAdjustment: difficulty::{Module, Storage, Config},
 		Utxo: utxo::{Module, Call, Storage, Config, Event},
 	}
 );
@@ -362,11 +379,7 @@ impl_runtime_apis! {
 
 	impl sp_consensus_pow::DifficultyApi<Block, U256> for Runtime {
 		fn difficulty() -> U256 {
-			//TODO Crib the difficulty adjustment algorithm from Kulupu.
-			// For now it is still constant difficulty
-			U256::from(1_000_000)
-
-			// pow_params::Module::<Runtime>::difficulty()
+			DifficultyAdjustment::difficulty()
 		}
 	}
 }

@@ -3,6 +3,7 @@
 //!
 //! It is possible to implement other DAAs such as that of BTC and BCH. This would be an interesting
 //! and worth-while experiment. The DAAs should be abstracted away with a trait.
+//! Some ideas: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3410460
 
 use core::cmp::{min, max};
 use sp_runtime::traits::UniqueSaturatedInto;
