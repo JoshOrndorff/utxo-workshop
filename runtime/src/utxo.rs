@@ -113,7 +113,7 @@ decl_module! {
 		fn on_finalize() {
 			match T::BlockAuthor::block_author() {
 				// Block author did not provide key to claim reward
-				None => return,
+				None => Self::deposit_event(Event::RewardsWasted),
 				// Block author did provide key, so issue thir reward
 				Some(author) => Self::disperse_reward(&author),
 			}
@@ -125,6 +125,10 @@ decl_event!(
 	pub enum Event {
 		/// Transaction was executed successfully
 		TransactionSuccess(Transaction),
+		/// Rewards were issued
+		RewardsIssued(H256),
+		/// Rewards were wasted
+		RewardsWasted,
 	}
 );
 
@@ -246,13 +250,15 @@ impl<T: Trait> Module<T> {
 		let hash = BlakeTwo256::hash_of(&(&utxo,
 					<system::Module<T>>::block_number().saturated_into::<u64>()));
 
-		//TODO replace (or supplement) these `print`s with events
+		//TODO consider removing these `print`s
 		if !<UtxoStore>::contains_key(hash) {
 			<UtxoStore>::insert(hash, utxo);
 			sp_runtime::print("transaction reward sent to");
 			sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
+			Self::deposit_event(Event::RewardsIssued(hash));
 		} else {
 			sp_runtime::print("transaction reward wasted due to hash collision");
+			Self::deposit_event(Event::RewardsWasted)
 		}
 	}
 

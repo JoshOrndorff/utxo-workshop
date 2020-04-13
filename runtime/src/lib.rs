@@ -230,12 +230,11 @@ impl difficulty::Trait for Runtime {
 	type MinDifficulty = DampFactor;
 }
 
+impl block_author::Trait for Runtime {}
+
 impl utxo::Trait for Runtime {
 	type Event = Event;
-	// TODO Actually write an inherent to detect the block author.
-	// In the meantime, I'm just using () which always returns `None`
-	// So rewards will always be wasted.
-	type BlockAuthor = ();
+	type BlockAuthor = BlockAuthor;
 
 	// TODO implement issuance in an interesting way. For now it is 0
 	type Issuance = ();
@@ -254,6 +253,7 @@ construct_runtime!(
 		TransactionPayment: transaction_payment::{Module, Storage},
 		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		DifficultyAdjustment: difficulty::{Module, Storage, Config},
+		BlockAuthor: block_author::{Module, Call, Storage, Inherent},
 		Utxo: utxo::{Module, Call, Storage, Config, Event},
 	}
 );
