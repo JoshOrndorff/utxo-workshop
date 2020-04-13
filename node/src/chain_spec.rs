@@ -137,7 +137,7 @@ fn testnet_genesis(
 			key: root_key,
 		}),
 		difficulty: Some(DifficultyAdjustmentConfig {
-			initial_difficulty: 3_000_000.into(),
+			initial_difficulty: 4_000_000.into(),
 		}),
 		utxo: Some(UtxoConfig {
 		  genesis_utxos: endowed_utxos
