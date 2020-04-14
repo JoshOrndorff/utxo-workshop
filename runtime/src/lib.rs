@@ -16,6 +16,7 @@ use sp_runtime::{
 		TransactionValidity,
 		TransactionValidityError,
 		InvalidTransaction,
+		TransactionSource,
 	},
 	generic, create_runtime_str,
 	impl_opaque_keys, MultiSignature,
@@ -329,7 +330,10 @@ impl_runtime_apis! {
 	}
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
+		fn validate_transaction(
+			source: TransactionSource,
+			tx: <Block as BlockT>::Extrinsic,
+		) -> TransactionValidity {
 			// Extrinsics representing UTXO transaction need some special handling
 			if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<Utxo, Runtime>::is_sub_type(&tx.function) {
 				match Utxo::validate_transaction(&transaction) {
@@ -344,7 +348,7 @@ impl_runtime_apis! {
 			}
 
 			// Fall back to default logic for non UTXO-spending extrinsics
-			Executive::validate_transaction(tx)
+			Executive::validate_transaction(source, tx)
 		}
 	}
 

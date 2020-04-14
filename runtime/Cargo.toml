@@ -9,7 +9,8 @@ version = '2.0.0-alpha.5'
 [dependencies.balances]
 default-features = false
 package = 'pallet-balances'
-version = '2.0.0-alpha.5'
+git = "https://github.com/paritytech/substrate.git"
+branch = "master"
 
 [dependencies.codec]
 default-features = false
@@ -19,16 +20,19 @@ version = '1.2.0'
 
 [dependencies.frame-executive]
 default-features = false
-version = '2.0.0-alpha.5'
+git = "https://github.com/paritytech/substrate.git"
+branch = "master"
 
 [dependencies.frame-support]
 default-features = false
-version = '2.0.0-alpha.5'
+git = "https://github.com/paritytech/substrate.git"
+branch = "master"
 
 [dependencies.randomness-collective-flip]
 default-features = false
 package = 'pallet-randomness-collective-flip'
-version = '2.0.0-alpha.5'
+git = "https://github.com/paritytech/substrate.git"
+branch = "master"
 
 [dependencies.serde]
 features = ['derive']
