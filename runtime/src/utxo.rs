@@ -242,15 +242,13 @@ impl<T: Trait> Module<T> {
 
 		let utxo = TransactionOutput {
 			value: reward,
-			// TODO Is this the correct way to convert public key into H256?
-			// I cribbed this logic from chain_spec.rs
 			pubkey: H256::from_slice(author.as_slice()),
 		};
 
 		let hash = BlakeTwo256::hash_of(&(&utxo,
 					<system::Module<T>>::block_number().saturated_into::<u64>()));
 
-		//TODO consider removing these `print`s
+		//TODO Remove these `print`s
 		<UtxoStore>::insert(hash, utxo);
 		sp_runtime::print("transaction reward sent to");
 		sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
