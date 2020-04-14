@@ -21,7 +21,7 @@ native_executor_instance!(
 	utxo_runtime::native_version,
 );
 
-pub fn build_inherent_data_providers() -> Result<InherentDataProviders, ServiceError> {
+pub fn build_inherent_data_providers(sr25519_public_key: sr25519::Public) -> Result<InherentDataProviders, ServiceError> {
 	let providers = InherentDataProviders::new();
 
 	providers
@@ -29,15 +29,11 @@ pub fn build_inherent_data_providers() -> Result<InherentDataProviders, ServiceE
 		.map_err(Into::into)
 		.map_err(sp_consensus::error::Error::InherentData)?;
 
-	let bogus_key = sr25519::Public::from_raw([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]);
 
 	//if let Some(author) = author
 	providers
 		.register_provider(utxo_runtime::block_author::InherentDataProvider(
-			// TODO get author info from CLI
-			// Use bogus author key for now.
-			bogus_key.encode()
-			//.expect("Valid author is provided in CLI"))
+			sr25519_public_key.encode(),
 		))
 		.map_err(Into::into)
 		.map_err(sp_consensus::error::Error::InherentData)?;
@@ -50,9 +46,9 @@ pub fn build_inherent_data_providers() -> Result<InherentDataProviders, ServiceE
 /// Use this macro if you don't actually need the full service, but just the builder in order to
 /// be able to perform chain operations.
 macro_rules! new_full_start {
-	($config:expr) => {{
+	($config:expr, $sr25519_public_key:expr) => {{
 		let mut import_setup = None;
-		let inherent_data_providers = crate::service::build_inherent_data_providers()?;
+		let inherent_data_providers = crate::service::build_inherent_data_providers($sr25519_public_key)?;
 
 		let builder = sc_service::ServiceBuilder::new_full::<
 			utxo_runtime::opaque::Block, utxo_runtime::RuntimeApi, crate::service::Executor
@@ -91,7 +87,7 @@ macro_rules! new_full_start {
 }
 
 /// Builds a new service for a full client.
-pub fn new_full(config: Configuration)
+pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public)
 	-> Result<impl AbstractService, ServiceError>
 {
 	let is_authority = config.roles.is_authority();
@@ -101,7 +97,7 @@ pub fn new_full(config: Configuration)
 	// never actively participate in any consensus process.
 	let participates_in_consensus = is_authority && !config.sentry_mode;
 
-	let (builder, mut import_setup, inherent_data_providers) = new_full_start!(config);
+	let (builder, mut import_setup, inherent_data_providers) = new_full_start!(config, sr25519_public_key);
 	let block_import = import_setup.take()
 		.expect("Block Import is present for Full Services or setup failed before. qed");
 
@@ -144,7 +140,7 @@ pub fn new_full(config: Configuration)
 }
 
 /// Builds a new service for a light client.
-pub fn new_light(config: Configuration)
+pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public)
 	-> Result<impl AbstractService, ServiceError>
 {
 	ServiceBuilder::new_light::<Block, RuntimeApi, Executor>(config)?
@@ -171,13 +167,13 @@ pub fn new_light(config: Configuration)
 				Sha3Algorithm::new(client.clone()),
 				0, // check_inherents_after,
 				select_chain,
-				build_inherent_data_providers()?,
+				build_inherent_data_providers(sr25519_public_key)?,
 			);
 
 			let import_queue = sc_consensus_pow::import_queue(
 				Box::new(pow_block_import),
 				Sha3Algorithm::new(client),
-				build_inherent_data_providers()?,
+				build_inherent_data_providers(sr25519_public_key)?,
 			)?;
 
 			Ok((import_queue, finality_proof_request_builder))

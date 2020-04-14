@@ -42,6 +42,7 @@ sp-runtime = '2.0.0-alpha.5'
 sp-timestamp = '2.0.0-alpha.5'
 sp-transaction-pool = '2.0.0-alpha.5'
 sha3pow = {path = './sha3pow'}
+hex = "0.4"
 
 [[bin]]
 name = 'node-template'
