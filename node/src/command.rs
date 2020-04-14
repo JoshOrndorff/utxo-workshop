@@ -59,19 +59,19 @@ impl SubstrateCli for Cli {
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
+	let default_sr25519_public_key = sp_core::sr25519::Public::from_raw([0; 32]);
 
 	match &cli.subcommand {
 		Some(subcommand) => {
-			let sr25519_public_key = sp_core::sr25519::Public::from_raw([0; 32]);
 			let runner = cli.create_runner(subcommand)?;
 
 			runner.run_subcommand(
 				subcommand,
-				|config| Ok(new_full_start!(config, sr25519_public_key).0),
+				|config| Ok(new_full_start!(config, default_sr25519_public_key).0),
 			)
 		},
 		None => {
-			let sr25519_public_key = cli.run.sr25519_public_key;
+			let sr25519_public_key = cli.run.sr25519_public_key.unwrap_or(default_sr25519_public_key);
 			let runner = cli.create_runner(&cli.run.base)?;
 
 			runner.run_node(
