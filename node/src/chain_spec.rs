@@ -47,6 +47,7 @@ impl Alternative {
 			Alternative::Development => ChainSpec::from_genesis(
 				"Development",
 				"dev",
+				sc_service::ChainType::Development,
 				|| testnet_genesis(
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					vec![
@@ -71,6 +72,7 @@ impl Alternative {
 			Alternative::LocalTestnet => ChainSpec::from_genesis(
 				"Local Testnet",
 				"local_testnet",
+				sc_service::ChainType::Local,
 				|| testnet_genesis(
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					vec![
