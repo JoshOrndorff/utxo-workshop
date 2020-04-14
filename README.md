@@ -72,6 +72,8 @@ cargo build --release
 
 ```json
 {
+  "Address": "AccountId",
+  "LookupSource": "AccountId",
   "Value": "u128",
   "TransactionInput": {
     "outpoint": "Hash",
