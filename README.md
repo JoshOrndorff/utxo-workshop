@@ -91,7 +91,8 @@ cargo build --release
   "DifficultyAndTimestamp": {
     "difficulty": "Difficulty",
     "timestamp": "Moment"
-  }
+  },
+	"Public": "H256"
 }
 ```
 
