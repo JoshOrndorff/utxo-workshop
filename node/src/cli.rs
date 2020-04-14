@@ -16,7 +16,7 @@ pub struct RunCmd {
 	#[structopt(flatten)]
 	pub base: sc_cli::RunCmd,
 
-	/// SR25519 public key
+	/// Miner's SR25519 public key for block rewards
 	#[structopt(long, parse(try_from_str = parse_sr25519_public_key))]
 	pub sr25519_public_key: Option<sp_core::sr25519::Public>,
 }

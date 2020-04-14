@@ -2,10 +2,8 @@
 authors = ['Anonymous']
 build = 'build.rs'
 edition = '2018'
-homepage = 'https://substrate.dev'
-license = 'Unlicense'
-name = 'node-template'
-repository = 'https://github.com/paritytech/substrate/'
+name = 'utxo-workshop'
+repository = 'https://github.com/substrate-developer-hub/utxo-workshop'
 version = '2.0.0-alpha.5'
 
 [build-dependencies]
@@ -44,4 +42,4 @@ sha3pow = {path = './sha3pow'}
 hex = "0.4"
 
 [[bin]]
-name = 'node-template'
+name = 'utxo-workshop'
