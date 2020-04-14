@@ -61,7 +61,7 @@ pub struct MinimalSha3Algorithm;
 impl<B: BlockT<Hash=H256>> PowAlgorithm<B> for MinimalSha3Algorithm {
 	type Difficulty = U256;
 
-	fn difficulty(&self, _parent: &BlockId<B>) -> Result<Self::Difficulty, Error<B>> {
+	fn difficulty(&self, _parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
 		// Fixed difficulty hardcoded here
 		Ok(U256::from(1_000_000))
 	}
@@ -163,8 +163,9 @@ impl<B: BlockT<Hash=H256>, C> PowAlgorithm<B> for Sha3Algorithm<C> where
 {
 	type Difficulty = U256;
 
-	fn difficulty(&self, parent: &BlockId<B>) -> Result<Self::Difficulty, Error<B>> {
-		self.client.runtime_api().difficulty(parent)
+	fn difficulty(&self, parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
+		let parent_id = BlockId::<B>::hash(parent);
+		self.client.runtime_api().difficulty(&parent_id)
 			.map_err(|e| sc_consensus_pow::Error::Environment(
 				format!("Fetching difficulty from runtime failed: {:?}", e)
 			))
