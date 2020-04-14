@@ -4,17 +4,20 @@ use frame_support::{
 	dispatch::{DispatchResult, Vec},
 	ensure,
 };
-//TODO is it correct to use the Public trait here??
-// ultimately I'm just trying to call as_slice to convert a pubkey to a H256
-use sp_core::{H256, H512, crypto::Public as _};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::sr25519::{Public, Signature};
-use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
+use sp_core::{
+	crypto::Public as _,
+	H256,
+	H512,
+	sr25519::{Public, Signature},
+};
 use sp_std::collections::btree_map::BTreeMap;
-use sp_runtime::transaction_validity::{TransactionLongevity, ValidTransaction};
-use super::block_author::BlockAuthor;
-use super::issuance::Issuance;
+use sp_runtime::{
+	traits::{BlakeTwo256, Hash, SaturatedConversion},
+	transaction_validity::{TransactionLongevity, ValidTransaction},
+};
+use super::{block_author::BlockAuthor, issuance::Issuance};
 
 pub trait Trait: system::Trait {
 	/// The ubiquitous Event type
