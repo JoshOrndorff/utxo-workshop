@@ -18,7 +18,7 @@ pub struct RunCmd {
 
 	/// SR25519 public key
 	#[structopt(long, parse(try_from_str = parse_sr25519_public_key))]
-	pub sr25519_public_key: sp_core::sr25519::Public,
+	pub sr25519_public_key: Option<sp_core::sr25519::Public>,
 }
 
 fn parse_sr25519_public_key(i: &str) -> Result<sp_core::sr25519::Public, String> {

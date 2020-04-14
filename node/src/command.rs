@@ -22,22 +22,21 @@ use crate::cli::Cli;
 /// Parse and run command line arguments
 pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
 	let opt = sc_cli::from_args::<Cli>(&version);
+	let default_sr25519_public_key = sp_core::sr25519::Public::from_raw([0; 32]);
 
 	let mut config = sc_service::Configuration::from_version(&version);
 
 	match opt.subcommand {
 		Some(subcommand) => {
-			let sr25519_public_key = sp_core::sr25519::Public::from_raw([0; 32]);
-
 			subcommand.init(&version)?;
 			subcommand.update_config(&mut config, chain_spec::load_spec, &version)?;
 			subcommand.run(
 				config,
-				|config: _| Ok(new_full_start!(config, sr25519_public_key).0),
+				|config: _| Ok(new_full_start!(config, default_sr25519_public_key).0),
 			)
 		},
 		None => {
-			let sr25519_public_key = opt.run.sr25519_public_key;
+			let sr25519_public_key = opt.run.sr25519_public_key.unwrap_or(default_sr25519_public_key);
 
 			opt.run.base.init(&version)?;
 			opt.run.base.update_config(&mut config, chain_spec::load_spec, &version)?;
