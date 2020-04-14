@@ -14,38 +14,70 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-use sc_cli::VersionInfo;
+use sc_cli::{SubstrateCli};
 use crate::service;
 use crate::chain_spec;
 use crate::cli::Cli;
 
+impl SubstrateCli for Cli {
+	fn impl_name() -> &'static str {
+		"Substrate Node"
+	}
+
+	fn impl_version() -> &'static str {
+		env!("SUBSTRATE_CLI_IMPL_VERSION")
+	}
+
+	fn executable_name() -> &'static str {
+		env!("CARGO_PKG_NAME")
+	}
+
+	fn author() -> &'static str {
+		env!("CARGO_PKG_AUTHORS")
+	}
+
+	fn description() -> &'static str {
+		env!("CARGO_PKG_DESCRIPTION")
+	}
+
+	fn support_url() -> &'static str {
+		"support.anonymous.an"
+	}
+
+	fn copyright_start_year() -> i32 {
+		2017
+	}
+
+	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+		Ok(match chain_spec::Alternative::from(id) {
+			Some(spec) => Box::new(spec.load()?),
+			None => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(id))?),
+		})
+	}
+}
+
 /// Parse and run command line arguments
-pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
-	let opt = sc_cli::from_args::<Cli>(&version);
+pub fn run() -> sc_cli::Result<()> {
+	let cli = Cli::from_args();
 
-	let mut config = sc_service::Configuration::from_version(&version);
-
-	match opt.subcommand {
+	match &cli.subcommand {
 		Some(subcommand) => {
 			let sr25519_public_key = sp_core::sr25519::Public::from_raw([0; 32]);
+			let runner = cli.create_runner(subcommand)?;
 
-			subcommand.init(&version)?;
-			subcommand.update_config(&mut config, chain_spec::load_spec, &version)?;
-			subcommand.run(
-				config,
-				|config: _| Ok(new_full_start!(config, sr25519_public_key).0),
+			runner.run_subcommand(
+				subcommand,
+				|config| Ok(new_full_start!(config, sr25519_public_key).0),
 			)
 		},
 		None => {
-			let sr25519_public_key = opt.run.sr25519_public_key;
+			let sr25519_public_key = cli.run.sr25519_public_key;
+			let runner = cli.create_runner(&cli.run.base)?;
 
-			opt.run.base.init(&version)?;
-			opt.run.base.update_config(&mut config, chain_spec::load_spec, &version)?;
-			opt.run.base.run(
-				config,
+			runner.run_node(
 				|config| service::new_light(config, sr25519_public_key),
 				|config| service::new_full(config, sr25519_public_key),
-				&version,
+				utxo_runtime::VERSION,
 			)
 		},
 	}

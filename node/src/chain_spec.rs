@@ -154,10 +154,3 @@ fn testnet_genesis(
 		}),
 	}
 }
-
-pub fn load_spec(id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
-	Ok(match Alternative::from(id) {
-		Some(spec) => Box::new(spec.load()?),
-		None => Box::new(ChainSpec::from_json_file(std::path::PathBuf::from(id))?),
-	})
-}
