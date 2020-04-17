@@ -2815,34 +2815,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-transaction-payment"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0384d314959975a758174982c17d88c021b227d6caf16c41e6810fd3dc39820f"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-transaction-payment-rpc-runtime-api",
- "parity-scale-codec",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-transaction-payment-rpc-runtime-api"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ac65e7676834aa6778e4a4dc476ee6838219f466d32eaa5e290ee39bb96c78c"
-dependencies = [
- "frame-support",
- "parity-scale-codec",
- "serde",
- "sp-api",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "parity-multiaddr"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5912,7 +5884,6 @@ dependencies = [
  "pallet-randomness-collective-flip",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment",
  "parity-scale-codec",
  "serde",
  "sp-api",
