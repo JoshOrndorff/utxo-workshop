@@ -25,11 +25,6 @@ version = '2.0.0-alpha.5'
 default-features = false
 version = '2.0.0-alpha.5'
 
-[dependencies.randomness-collective-flip]
-default-features = false
-package = 'pallet-randomness-collective-flip'
-version = '2.0.0-alpha.5'
-
 [dependencies.serde]
 features = ['derive']
 optional = true
@@ -112,7 +107,6 @@ std = [
     'codec/std',
     'frame-executive/std',
     'frame-support/std',
-    'randomness-collective-flip/std',
     'serde',
     'sp-api/std',
     'sp-block-builder/std',

@@ -238,7 +238,6 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
 		//TODO Should we remove balance pallet? It isn't necessary and might be confusing
 		// alongside the UTXO tokens. But it is darn convenient for testing a quick transaction.
@@ -317,7 +316,9 @@ impl_runtime_apis! {
 		}
 
 		fn random_seed() -> <Block as BlockT>::Hash {
-			RandomnessCollectiveFlip::random_seed()
+			// This runtime does not have a randomness source so we jsut return the default Hash
+			// This should certainly not be treated as random.
+			Default::default()
 		}
 	}
 

@@ -2768,20 +2768,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-randomness-collective-flip"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0901faf91fdec1afa1810bf6f07678482be066ba79fc9d80095360e2c53e2f03"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "safe-mix",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-sudo"
 version = "2.0.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3629,15 +3615,6 @@ name = "ryu"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "535622e6be132bccd223f4bb2b8ac8d53cda3c7a6394944d3b2b33fb974f9d76"
-
-[[package]]
-name = "safe-mix"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d3d055a2582e6b00ed7a31c1524040aa391092bf636328350813f3a0605215c"
-dependencies = [
- "rustc_version",
-]
 
 [[package]]
 name = "salsa20"
@@ -5881,7 +5858,6 @@ dependencies = [
  "frame-system",
  "hex-literal",
  "pallet-balances",
- "pallet-randomness-collective-flip",
  "pallet-sudo",
  "pallet-timestamp",
  "parity-scale-codec",
