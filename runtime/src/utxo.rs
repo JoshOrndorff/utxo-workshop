@@ -251,10 +251,7 @@ impl<T: Trait> Module<T> {
 		let hash = BlakeTwo256::hash_of(&(&utxo,
 					<system::Module<T>>::block_number().saturated_into::<u64>()));
 
-		//TODO Remove these `print`s
 		<UtxoStore>::insert(hash, utxo);
-		sp_runtime::print("transaction reward sent to");
-		sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
 		Self::deposit_event(Event::RewardsIssued(reward, hash));
 	}
 

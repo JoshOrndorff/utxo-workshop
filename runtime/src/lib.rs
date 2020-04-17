@@ -100,7 +100,6 @@ pub mod opaque {
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
 
-	//TODO Does this need to remain at all?
 	impl_opaque_keys! {
 		pub struct SessionKeys {}
 	}
