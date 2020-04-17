@@ -7,7 +7,7 @@
 
 use core::cmp::{min, max};
 use sp_runtime::traits::UniqueSaturatedInto;
-use frame_support::{decl_storage, decl_module, traits::Get};
+use frame_support::{decl_storage, decl_module, traits::{Get, Time}};
 use codec::{Encode, Decode};
 use sp_core::U256;
 
@@ -22,14 +22,16 @@ pub fn damp(actual: u128, goal: u128, damp_factor: u128) -> u128 {
 	(actual + (damp_factor - 1) * goal) / damp_factor
 }
 
-/// limit value to be within some factor from a goal
+/// Limit value to be within some factor from a goal
 pub fn clamp(actual: u128, goal: u128, clamp_factor: u128) -> u128 {
 	max(goal / clamp_factor, min(actual, goal * clamp_factor))
 }
 
 /// Pallet's configuration trait.
 /// Tightly coupled to the timestamp trait because we need it's timestamp information
-pub trait Trait: timestamp::Trait {
+pub trait Trait: system::Trait {
+	/// A Source for timestamp data
+	type TimeProvider: Time;
 	/// The block time that the DAA will attempt to maintain
 	type TargetBlockTime: Get<u128>;
 	/// Dampening factor to use for difficulty adjustment
@@ -52,7 +54,7 @@ decl_storage! {
 	trait Store for Module<T: Trait> as Difficulty {
 		/// Past difficulties and timestamps, from earliest to latest.
 		PastDifficultiesAndTimestamps:
-		[Option<DifficultyAndTimestamp<T::Moment>>; 60]
+		[Option<DifficultyAndTimestamp<<<T as Trait>::TimeProvider as Time>::Moment>>; 60]
 			= [None; DIFFICULTY_ADJUST_WINDOW as usize];
 		/// Current difficulty.
 		pub CurrentDifficulty get(difficulty) build(|config: &GenesisConfig| {
@@ -73,7 +75,7 @@ decl_module! {
 			}
 
 			data[data.len() - 1] = Some(DifficultyAndTimestamp {
-				timestamp: <timestamp::Module<T>>::get(),
+				timestamp: T::TimeProvider::now(),
 				difficulty: Self::difficulty(),
 			});
 

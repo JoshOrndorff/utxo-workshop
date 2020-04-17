@@ -229,6 +229,7 @@ parameter_types! {
 }
 
 impl difficulty::Trait for Runtime {
+	type TimeProvider = Timestamp;
 	type TargetBlockTime = TargetBlockTime;
 	type DampFactor = DampFactor;
 	type ClampFactor = ClampFactor;
