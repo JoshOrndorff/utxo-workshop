@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use sp_core::sr25519;
-use sp_std::{result, prelude::*};
+use sp_std::vec::Vec;
 use sp_runtime::RuntimeString;
 use frame_support::{
 	decl_module, decl_storage, decl_error, ensure,
@@ -126,16 +126,10 @@ impl<T: Trait> ProvideInherent for Module<T> {
 		let author_raw = data.get_data::<InherentType>(&INHERENT_IDENTIFIER)
 			.expect("Gets and decodes authorship inherent data")?;
 
-		// Decode the Vec<u8> into an actual author TODO what is the type? Public?
+		// Decode the Vec<u8> into an actual author
 		let author = sr25519::Public::decode(&mut &author_raw[..])
 			.expect("Decodes author raw inherent data");
 
 		Some(Call::set_author(author))
-	}
-
-	//TODO This trivial method was present in Kulupu, so I've kept it for now.
-	// The provided implementation does the exact some thing, so we should be able to remove this.
-	fn check_inherent(_call: &Self::Call, _data: &InherentData) -> result::Result<(), Self::Error> {
-		Ok(())
 	}
 }
