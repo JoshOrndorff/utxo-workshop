@@ -171,12 +171,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "assert_matches"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7deb0a829ca7bcfaf5da70b073a8d128619259a7be8216a355e23f00763059e5"
-
-[[package]]
 name = "async-std"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -883,20 +877,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0da54a593b34c71b889ee45f5b5bb900c74148c5f7f8c6a9479ee7899f69603c"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "finality-grandpa"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "024517816630be5204eba201e8d1d405042b1255a5e0e3f298b054fc24d59e1d"
-dependencies = [
- "futures 0.3.4",
- "futures-timer 2.0.2",
- "log",
- "num-traits",
- "parity-scale-codec",
- "parking_lot 0.9.0",
 ]
 
 [[package]]
@@ -2638,35 +2618,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-template"
-version = "2.0.0-alpha.5"
-dependencies = [
- "futures 0.3.4",
- "log",
- "sc-basic-authorship",
- "sc-cli",
- "sc-client",
- "sc-client-api",
- "sc-consensus-aura",
- "sc-executor",
- "sc-finality-grandpa",
- "sc-network",
- "sc-service",
- "sc-transaction-pool",
- "sp-consensus",
- "sp-consensus-aura",
- "sp-core",
- "sp-finality-grandpa",
- "sp-inherents",
- "sp-runtime",
- "sp-transaction-pool",
- "structopt",
- "substrate-build-script-utils",
- "utxo-runtime",
- "vergen",
-]
-
-[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2801,28 +2752,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-aura"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c49caa853a7f6126d9874041bb650747dda0975007f240cffbd8dbb710e385d6"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-session",
- "pallet-timestamp",
- "parity-scale-codec",
- "serde",
- "sp-application-crypto",
- "sp-consensus-aura",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-timestamp",
-]
-
-[[package]]
 name = "pallet-balances"
 version = "2.0.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2836,75 +2765,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-finality-tracker"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "954b11ebb7de3f1ec5e23b37af4a2d1b7f04bc81b13cde2eb76abb4171300cfc"
-dependencies = [
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "parity-scale-codec",
- "serde",
- "sp-finality-tracker",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-grandpa"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2ede4c610644a485d9f78dfb4853a2b20efb752fe5ab0e75c78e239313304cb"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-finality-tracker",
- "pallet-session",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-finality-grandpa",
- "sp-runtime",
- "sp-staking",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-randomness-collective-flip"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0901faf91fdec1afa1810bf6f07678482be066ba79fc9d80095360e2c53e2f03"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "safe-mix",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-session"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c96ae32f6b03f10067ecd85eb1b686dff0217ac238bd93d2a0dd4460646b6c7"
-dependencies = [
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "pallet-timestamp",
- "parity-scale-codec",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "sp-std",
- "sp-trie",
 ]
 
 [[package]]
@@ -2938,34 +2798,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
-]
-
-[[package]]
-name = "pallet-transaction-payment"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0384d314959975a758174982c17d88c021b227d6caf16c41e6810fd3dc39820f"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-transaction-payment-rpc-runtime-api",
- "parity-scale-codec",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-transaction-payment-rpc-runtime-api"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ac65e7676834aa6778e4a4dc476ee6838219f466d32eaa5e290ee39bb96c78c"
-dependencies = [
- "frame-support",
- "parity-scale-codec",
- "serde",
- "sp-api",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -3443,7 +3275,7 @@ dependencies = [
  "rand_isaac",
  "rand_jitter",
  "rand_os",
- "rand_pcg",
+ "rand_pcg 0.1.2",
  "rand_xorshift",
  "winapi 0.3.8",
 ]
@@ -3459,6 +3291,7 @@ dependencies = [
  "rand_chacha 0.2.2",
  "rand_core 0.5.1",
  "rand_hc 0.2.0",
+ "rand_pcg 0.2.1",
 ]
 
 [[package]]
@@ -3565,6 +3398,15 @@ checksum = "abf9b09b01790cfe0364f52bf32995ea3c39f4d2dd011eac241d2914146d0b44"
 dependencies = [
  "autocfg 0.1.7",
  "rand_core 0.4.2",
+]
+
+[[package]]
+name = "rand_pcg"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16abd0c1b639e9eb4d7c50c0b8100b0d0f849be2349829c740fe8e6eb4816429"
+dependencies = [
+ "rand_core 0.5.1",
 ]
 
 [[package]]
@@ -3773,15 +3615,6 @@ name = "ryu"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "535622e6be132bccd223f4bb2b8ac8d53cda3c7a6394944d3b2b33fb974f9d76"
-
-[[package]]
-name = "safe-mix"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d3d055a2582e6b00ed7a31c1524040aa391092bf636328350813f3a0605215c"
-dependencies = [
- "rustc_version",
-]
 
 [[package]]
 name = "salsa20"
@@ -4009,57 +3842,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-consensus-aura"
+name = "sc-consensus-pow"
 version = "0.8.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1202aef261a68f30db9f57dfb013ec07fc79ba3df8cf9675ed17ee645445a004"
+checksum = "bcc89066cf19325ccfefea8f0e1b63688b618e3f9e501d893f1667e751339ccc"
 dependencies = [
  "derive_more",
  "futures 0.3.4",
- "futures-timer 3.0.2",
  "log",
  "parity-scale-codec",
- "parking_lot 0.10.0",
- "sc-block-builder",
- "sc-client",
  "sc-client-api",
- "sc-consensus-slots",
- "sc-keystore",
- "sc-telemetry",
  "sp-api",
- "sp-application-crypto",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
- "sp-consensus-aura",
+ "sp-consensus-pow",
  "sp-core",
  "sp-inherents",
- "sp-io",
  "sp-runtime",
  "sp-timestamp",
- "sp-version",
-]
-
-[[package]]
-name = "sc-consensus-slots"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86e84cf67d0330f4ba843577475dddff55f2db0199d55c94a972640e44afcdce"
-dependencies = [
- "futures 0.3.4",
- "futures-timer 3.0.2",
- "log",
- "parity-scale-codec",
- "parking_lot 0.10.0",
- "sc-client-api",
- "sc-telemetry",
- "sp-api",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "sp-state-machine",
 ]
 
 [[package]]
@@ -4121,42 +3922,6 @@ dependencies = [
  "sp-runtime-interface",
  "sp-wasm-interface",
  "wasmi",
-]
-
-[[package]]
-name = "sc-finality-grandpa"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aad8a1f0d03e8a7c3b1d8cd74050960365e347f739c131715f84f588dd051a4"
-dependencies = [
- "assert_matches",
- "finality-grandpa",
- "fork-tree",
- "futures 0.3.4",
- "futures-timer 3.0.2",
- "log",
- "parity-scale-codec",
- "parking_lot 0.10.0",
- "pin-project",
- "rand 0.7.3",
- "sc-block-builder",
- "sc-client",
- "sc-client-api",
- "sc-keystore",
- "sc-network",
- "sc-network-gossip",
- "sc-telemetry",
- "serde_json",
- "sp-api",
- "sp-arithmetic",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-finality-grandpa",
- "sp-finality-tracker",
- "sp-inherents",
- "sp-runtime",
- "substrate-prometheus-endpoint",
 ]
 
 [[package]]
@@ -4243,22 +4008,6 @@ dependencies = [
  "void",
  "wasm-timer",
  "zeroize",
-]
-
-[[package]]
-name = "sc-network-gossip"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eb8906bfd2d54f84fad8aba2f4303cff30f5596e7d4b90f97008d5477ea9ce4"
-dependencies = [
- "futures 0.3.4",
- "futures-timer 3.0.2",
- "libp2p",
- "log",
- "lru",
- "sc-network",
- "sp-runtime",
- "wasm-timer",
 ]
 
 [[package]]
@@ -4684,6 +4433,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha3pow"
+version = "2.0.0-alpha.5"
+dependencies = [
+ "futures 0.3.4",
+ "log",
+ "parity-scale-codec",
+ "rand 0.7.3",
+ "sc-basic-authorship",
+ "sc-cli",
+ "sc-client",
+ "sc-client-api",
+ "sc-consensus-pow",
+ "sc-executor",
+ "sc-network",
+ "sc-service",
+ "sc-transaction-pool",
+ "sha3",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-pow",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-timestamp",
+ "sp-transaction-pool",
+ "structopt",
+ "substrate-build-script-utils",
+ "vergen",
+]
+
+[[package]]
 name = "shell32-sys"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4935,21 +4716,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-consensus-aura"
-version = "0.8.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ee662e18c471a2a7abb56ddc32790aeb4cf348b67bfe4c5b320360be0aa7a72"
-dependencies = [
- "parity-scale-codec",
- "sp-api",
- "sp-application-crypto",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
- "sp-timestamp",
-]
-
-[[package]]
 name = "sp-consensus-babe"
 version = "0.8.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4964,6 +4730,19 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "sp-consensus-pow"
+version = "0.8.0-alpha.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd22ad5525ddce3522e101a8c07e9566c375d6bcc044e79e9061611b0d87618a"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -5041,31 +4820,6 @@ dependencies = [
  "environmental",
  "sp-std",
  "sp-storage",
-]
-
-[[package]]
-name = "sp-finality-grandpa"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9b4d96f0aa94da01d3110a20b54d8c35c419b193df6e9fa9127b2aa912afecb"
-dependencies = [
- "parity-scale-codec",
- "serde",
- "sp-api",
- "sp-application-crypto",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "sp-finality-tracker"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0be49e587e5667f747ca743ef468949535fae5640d26c236ac35e44abe595b15"
-dependencies = [
- "parity-scale-codec",
- "sp-inherents",
- "sp-std",
 ]
 
 [[package]]
@@ -5210,17 +4964,6 @@ checksum = "9c8e48c0f293408a073609b7274a0ff9388802ae2482de094e36b0609cb38bf5"
 dependencies = [
  "sp-api",
  "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "sp-staking"
-version = "2.0.0-alpha.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3e9996147f5b2572995e7377f2257e8ce207065e135115c3d3845838c1cbaa2"
-dependencies = [
- "parity-scale-codec",
  "sp-runtime",
  "sp-std",
 ]
@@ -6114,18 +5857,14 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex-literal",
- "pallet-aura",
  "pallet-balances",
- "pallet-grandpa",
- "pallet-randomness-collective-flip",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment",
  "parity-scale-codec",
  "serde",
  "sp-api",
  "sp-block-builder",
- "sp-consensus-aura",
+ "sp-consensus-pow",
  "sp-core",
  "sp-inherents",
  "sp-io",
@@ -6136,6 +5875,41 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder-runner",
+]
+
+[[package]]
+name = "utxo-workshop"
+version = "2.0.0-alpha.5"
+dependencies = [
+ "futures 0.3.4",
+ "hex",
+ "log",
+ "parity-scale-codec",
+ "rand 0.7.3",
+ "sc-basic-authorship",
+ "sc-cli",
+ "sc-client",
+ "sc-client-api",
+ "sc-consensus-pow",
+ "sc-executor",
+ "sc-network",
+ "sc-service",
+ "sc-transaction-pool",
+ "sha3",
+ "sha3pow",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-pow",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-timestamp",
+ "sp-transaction-pool",
+ "structopt",
+ "substrate-build-script-utils",
+ "utxo-runtime",
+ "vergen",
 ]
 
 [[package]]

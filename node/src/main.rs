@@ -9,12 +9,12 @@ mod command;
 
 fn main() -> sc_cli::Result<()> {
 	let version = sc_cli::VersionInfo {
-		name: "Substrate Node",
+		name: "UTXO Workshop",
 		commit: env!("VERGEN_SHA_SHORT"),
 		version: env!("CARGO_PKG_VERSION"),
-		executable_name: "node-template",
+		executable_name: "utxo-workshop",
 		author: "Anonymous",
-		description: "Template Node",
+		description: "A Bitcoin-like node featuring the UTXO pallet",
 		support_url: "support.anonymous.an",
 		copyright_start_year: 2017,
 	};

@@ -1,20 +1,33 @@
-use super::Aura;
 use codec::{Decode, Encode};
 use frame_support::{
 	decl_event, decl_module, decl_storage,
 	dispatch::{DispatchResult, Vec},
 	ensure,
 };
-use sp_core::{H256, H512};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::sr25519::{Public, Signature};
-use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
+use sp_core::{
+	crypto::Public as _,
+	H256,
+	H512,
+	sr25519::{Public, Signature},
+};
 use sp_std::collections::btree_map::BTreeMap;
-use sp_runtime::transaction_validity::{TransactionLongevity, ValidTransaction};
+use sp_runtime::{
+	traits::{BlakeTwo256, Hash, SaturatedConversion},
+	transaction_validity::{TransactionLongevity, ValidTransaction},
+};
+use super::{block_author::BlockAuthor, issuance::Issuance};
 
 pub trait Trait: system::Trait {
+	/// The ubiquitous Event type
 	type Event: From<Event> + Into<<Self as system::Trait>::Event>;
+
+	/// A source to determine the block author
+	type BlockAuthor: BlockAuthor;
+
+	/// A source to determine the issuance portion of the block reward
+	type Issuance: Issuance<<Self as system::Trait>::BlockNumber, Value>;
 }
 
 pub type Value = u128;
@@ -101,11 +114,12 @@ decl_module! {
 
 		/// Handler called by the system on block finalization
 		fn on_finalize() {
-			let auth:Vec<_> = Aura::authorities().iter().map(|x| {
-				let r: &Public = x.as_ref();
-				r.0.into()
-			}).collect();
-			Self::disperse_reward(&auth);
+			match T::BlockAuthor::block_author() {
+				// Block author did not provide key to claim reward
+				None => Self::deposit_event(Event::RewardsWasted),
+				// Block author did provide key, so issue thir reward
+				Some(author) => Self::disperse_reward(&author),
+			}
 		}
 	}
 }
@@ -114,6 +128,10 @@ decl_event!(
 	pub enum Event {
 		/// Transaction was executed successfully
 		TransactionSuccess(Transaction),
+		/// Rewards were issued. Amount, UTXO hash.
+		RewardsIssued(Value, H256),
+		/// Rewards were wasted
+		RewardsWasted,
 	}
 );
 
@@ -221,38 +239,20 @@ impl<T: Trait> Module<T> {
 		Ok(())
 	}
 
-	/// Redistribute combined reward value evenly among chain authorities
-	fn disperse_reward(authorities: &[H256]) {
-		let reward = <RewardTotal>::take();
-		let share_value: Value = reward
-			.checked_div(authorities.len() as Value)
-			.ok_or("No authorities")
-			.unwrap();
-		if share_value == 0 { return }
+	/// Redistribute combined reward value to block Author
+	fn disperse_reward(author: &Public) {
+		let reward = RewardTotal::take() + T::Issuance::issuance(system::Module::<T>::block_number());
 
-		let remainder = reward
-			.checked_sub(share_value * authorities.len() as Value)
-			.ok_or("Sub underflow")
-			.unwrap();
-		<RewardTotal>::put(remainder as Value);
+		let utxo = TransactionOutput {
+			value: reward,
+			pubkey: H256::from_slice(author.as_slice()),
+		};
 
-		for authority in authorities {
-			let utxo = TransactionOutput {
-				value: share_value,
-				pubkey: *authority,
-			};
+		let hash = BlakeTwo256::hash_of(&(&utxo,
+					<system::Module<T>>::block_number().saturated_into::<u64>()));
 
-			let hash = BlakeTwo256::hash_of(&(&utxo,
-						<system::Module<T>>::block_number().saturated_into::<u64>()));
-
-			if !<UtxoStore>::contains_key(hash) {
-				<UtxoStore>::insert(hash, utxo);
-				sp_runtime::print("transaction reward sent to");
-				sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
-			} else {
-				sp_runtime::print("transaction reward wasted due to hash collision");
-			}
-		}
+		<UtxoStore>::insert(hash, utxo);
+		Self::deposit_event(Event::RewardsIssued(reward, hash));
 	}
 
 	// Strips a transaction of its Signature fields by replacing value with ZERO-initialized fixed hash.
@@ -323,8 +323,11 @@ mod tests {
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
 	}
+
 	impl Trait for Test {
 		type Event = ();
+		type BlockAuthor = ();
+		type Issuance = ();
 	}
 
 	type Utxo = Module<Test>;

@@ -9,24 +9,27 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_std::prelude::*;
-use sp_core::OpaqueMetadata;
+use sp_core::{OpaqueMetadata, U256};
 use sp_runtime::{
 	ApplyExtrinsicResult,
+	create_runtime_str,
+	generic,
+	impl_opaque_keys,
+	MultiSignature,
+	traits::{
+		BlakeTwo256,
+		Block as BlockT,
+		IdentifyAccount,
+		IdentityLookup,
+		Verify,
+	},
 	transaction_validity::{
 		TransactionValidity,
 		TransactionValidityError,
 		InvalidTransaction,
 	},
-	generic, create_runtime_str,
-	impl_opaque_keys, MultiSignature,
-};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, ConvertInto, IdentifyAccount
 };
 use sp_api::impl_runtime_apis;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use grandpa::AuthorityList as GrandpaAuthorityList;
-use grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -72,6 +75,15 @@ pub type DigestItem = generic::DigestItem<Hash>;
 /// The UTXO pallet in `./utxo.rs`
 pub mod utxo;
 
+/// The BlockAuthor trait in `./block_author.rs`
+pub mod block_author;
+
+/// The Issuance trait in `./issuance.rs`
+pub mod issuance;
+
+/// The Difficulty Adjustment Algorithm in `./difficulty.rs`
+pub mod difficulty;
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -89,10 +101,7 @@ pub mod opaque {
 	pub type BlockId = generic::BlockId<Block>;
 
 	impl_opaque_keys! {
-		pub struct SessionKeys {
-			pub aura: Aura,
-			pub grandpa: Grandpa,
-		}
+		pub struct SessionKeys {}
 	}
 }
 
@@ -105,15 +114,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 };
-
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
-
-pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
-
-// These time units are defined in number of blocks.
-pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
-pub const HOURS: BlockNumber = MINUTES * 60;
-pub const DAYS: BlockNumber = HOURS * 24;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -175,22 +175,14 @@ impl system::Trait for Runtime {
 	type AccountData = balances::AccountData<Balance>;
 }
 
-impl aura::Trait for Runtime {
-	type AuthorityId = AuraId;
-}
-
-impl grandpa::Trait for Runtime {
-	type Event = Event;
-}
-
 parameter_types! {
-	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+	pub const MinimumPeriod: u64 = 1000;
 }
 
 impl timestamp::Trait for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
-	type OnTimestampSet = Aura;
+	type OnTimestampSet = ();
 	type MinimumPeriod = MinimumPeriod;
 }
 
@@ -208,27 +200,34 @@ impl balances::Trait for Runtime {
 	type AccountStore = System;
 }
 
-parameter_types! {
-	pub const TransactionBaseFee: Balance = 0;
-	pub const TransactionByteFee: Balance = 1;
-}
-
-impl transaction_payment::Trait for Runtime {
-	type Currency = balances::Module<Runtime>;
-	type OnTransactionPayment = ();
-	type TransactionBaseFee = TransactionBaseFee;
-	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = ConvertInto;
-	type FeeMultiplierUpdate = ();
-}
-
 impl sudo::Trait for Runtime {
 	type Event = Event;
 	type Call = Call;
 }
 
+parameter_types! {
+	pub const TargetBlockTime: u128 = 3_000;
+	pub const DampFactor: u128 = 3;
+	pub const ClampFactor: u128 = 2;
+	pub const MaxDifficulty: u128 = u128::max_value();
+}
+
+impl difficulty::Trait for Runtime {
+	type TimeProvider = Timestamp;
+	type TargetBlockTime = TargetBlockTime;
+	type DampFactor = DampFactor;
+	type ClampFactor = ClampFactor;
+	type MaxDifficulty = MaxDifficulty;
+	// Setting min difficulty to damp factor per recommendation
+	type MinDifficulty = DampFactor;
+}
+
+impl block_author::Trait for Runtime {}
+
 impl utxo::Trait for Runtime {
 	type Event = Event;
+	type BlockAuthor = BlockAuthor;
+	type Issuance = issuance::BitcoinHalving;
 }
 
 construct_runtime!(
@@ -238,13 +237,13 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
-		Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
-		Grandpa: grandpa::{Module, Call, Storage, Config, Event},
+		//TODO Should we remove balance pallet? It isn't necessary and might be confusing
+		// alongside the UTXO tokens. But it is darn convenient for testing a quick transaction.
 		Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: transaction_payment::{Module, Storage},
 		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
+		DifficultyAdjustment: difficulty::{Module, Storage, Config},
+		BlockAuthor: block_author::{Module, Call, Storage, Inherent},
 		Utxo: utxo::{Module, Call, Storage, Config, Event},
 	}
 );
@@ -266,7 +265,6 @@ pub type SignedExtra = (
 	system::CheckEra<Runtime>,
 	system::CheckNonce<Runtime>,
 	system::CheckWeight<Runtime>,
-	transaction_payment::ChargeTransactionPayment<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
@@ -317,7 +315,9 @@ impl_runtime_apis! {
 		}
 
 		fn random_seed() -> <Block as BlockT>::Hash {
-			RandomnessCollectiveFlip::random_seed()
+			// This runtime does not have a randomness source so we jsut return the default Hash
+			// This should certainly not be treated as random.
+			Default::default()
 		}
 	}
 
@@ -347,16 +347,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-		fn slot_duration() -> u64 {
-			Aura::slot_duration()
-		}
-
-		fn authorities() -> Vec<AuraId> {
-			Aura::authorities()
-		}
-	}
-
 	impl sp_session::SessionKeys<Block> for Runtime {
 		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
 			opaque::SessionKeys::generate(seed)
@@ -369,9 +359,9 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl fg_primitives::GrandpaApi<Block> for Runtime {
-		fn grandpa_authorities() -> GrandpaAuthorityList {
-			Grandpa::grandpa_authorities()
+	impl sp_consensus_pow::DifficultyApi<Block, U256> for Runtime {
+		fn difficulty() -> U256 {
+			DifficultyAdjustment::difficulty()
 		}
 	}
 }

@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-use sp_consensus_aura::sr25519::{AuthorityPair as AuraPair};
 use sc_cli::VersionInfo;
 use crate::service;
 use crate::chain_spec;
@@ -23,6 +22,7 @@ use crate::cli::Cli;
 /// Parse and run command line arguments
 pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
 	let opt = sc_cli::from_args::<Cli>(&version);
+	let default_sr25519_public_key = sp_core::sr25519::Public::from_raw([0; 32]);
 
 	let mut config = sc_service::Configuration::from_version(&version);
 
@@ -32,16 +32,18 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
 			subcommand.update_config(&mut config, chain_spec::load_spec, &version)?;
 			subcommand.run(
 				config,
-				|config: _| Ok(new_full_start!(config).0),
+				|config: _| Ok(new_full_start!(config, default_sr25519_public_key).0),
 			)
 		},
 		None => {
-			opt.run.init(&version)?;
-			opt.run.update_config(&mut config, chain_spec::load_spec, &version)?;
-			opt.run.run(
+			let sr25519_public_key = opt.run.sr25519_public_key.unwrap_or(default_sr25519_public_key);
+
+			opt.run.base.init(&version)?;
+			opt.run.base.update_config(&mut config, chain_spec::load_spec, &version)?;
+			opt.run.base.run(
 				config,
-				service::new_light,
-				service::new_full,
+				|config| service::new_light(config, sr25519_public_key),
+				|config| service::new_full(config, sr25519_public_key),
 				&version,
 			)
 		},
