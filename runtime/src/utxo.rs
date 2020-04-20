@@ -324,10 +324,6 @@ mod tests {
 		type OnKilledAccount = ();
 	}
 
-	impl Issuance<u64, u128> for () {
-		fn issuance(block: u64) -> u128 { 0 }
-	}
-
 	impl Trait for Test {
 		type Event = ();
 		type BlockAuthor = ();

@@ -6,11 +6,15 @@ pub trait Issuance<BlockNumber, Balance> {
 	fn issuance(block: BlockNumber) -> Balance;
 }
 
-// A minimal implementation for when you don't actually want any issuance
+// Minimal implementations for when you don't actually want any issuance
 impl Issuance<u32, u128> for () {
 	fn issuance(_block: u32) -> u128 {
 		0
 	}
+}
+
+impl Issuance<u64, u128> for () {
+	fn issuance(_block: u64) -> u128 { 0 }
 }
 
 /// A type that provides block issuance according to bitcoin's rules
