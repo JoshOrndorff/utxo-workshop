@@ -5,17 +5,20 @@ use frame_support::{
 	ensure,
 	weights::SimpleDispatchInfo,
 };
-//TODO is it correct to use the Public trait here??
-// ultimately I'm just trying to call as_slice to convert a pubkey to a H256
-use sp_core::{H256, H512, crypto::Public as _};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::sr25519::{Public, Signature};
-use sp_runtime::traits::{BlakeTwo256, Hash, SaturatedConversion};
+use sp_core::{
+	crypto::Public as _,
+	H256,
+	H512,
+	sr25519::{Public, Signature},
+};
 use sp_std::collections::btree_map::BTreeMap;
-use sp_runtime::transaction_validity::{TransactionLongevity, ValidTransaction};
-use super::block_author::BlockAuthor;
-use super::issuance::Issuance;
+use sp_runtime::{
+	traits::{BlakeTwo256, Hash, SaturatedConversion},
+	transaction_validity::{TransactionLongevity, ValidTransaction},
+};
+use super::{block_author::BlockAuthor, issuance::Issuance};
 
 pub trait Trait: system::Trait {
 	/// The ubiquitous Event type
@@ -244,18 +247,13 @@ impl<T: Trait> Module<T> {
 
 		let utxo = TransactionOutput {
 			value: reward,
-			// TODO Is this the correct way to convert public key into H256?
-			// I cribbed this logic from chain_spec.rs
 			pubkey: H256::from_slice(author.as_slice()),
 		};
 
 		let hash = BlakeTwo256::hash_of(&(&utxo,
 					<system::Module<T>>::block_number().saturated_into::<u64>()));
 
-		//TODO consider removing these `print`s
 		<UtxoStore>::insert(hash, utxo);
-		sp_runtime::print("transaction reward sent to");
-		sp_runtime::print(hash.as_fixed_bytes() as &[u8]);
 		Self::deposit_event(Event::RewardsIssued(reward, hash));
 	}
 
@@ -327,8 +325,11 @@ mod tests {
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
 	}
+
 	impl Trait for Test {
 		type Event = ();
+		type BlockAuthor = ();
+		type Issuance = ();
 	}
 
 	type Utxo = Module<Test>;

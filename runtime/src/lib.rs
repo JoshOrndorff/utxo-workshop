@@ -12,17 +12,23 @@ use sp_std::prelude::*;
 use sp_core::{OpaqueMetadata, U256};
 use sp_runtime::{
 	ApplyExtrinsicResult,
+	create_runtime_str,
+	generic,
+	impl_opaque_keys,
+	MultiSignature,
+	traits::{
+		BlakeTwo256,
+		Block as BlockT,
+		IdentifyAccount,
+		IdentityLookup,
+		Verify,
+	},
 	transaction_validity::{
 		TransactionValidity,
 		TransactionValidityError,
 		InvalidTransaction,
 		TransactionSource,
 	},
-	generic, create_runtime_str,
-	impl_opaque_keys, MultiSignature,
-};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, ConvertInto, IdentifyAccount
 };
 use sp_api::impl_runtime_apis;
 use sp_version::RuntimeVersion;
@@ -95,7 +101,6 @@ pub mod opaque {
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
 
-	//TODO Does this need to remain at all?
 	impl_opaque_keys! {
 		pub struct SessionKeys {}
 	}
@@ -196,20 +201,6 @@ impl balances::Trait for Runtime {
 	type AccountStore = System;
 }
 
-parameter_types! {
-	pub const TransactionBaseFee: Balance = 0;
-	pub const TransactionByteFee: Balance = 1;
-}
-
-impl transaction_payment::Trait for Runtime {
-	type Currency = balances::Module<Runtime>;
-	type OnTransactionPayment = ();
-	type TransactionBaseFee = TransactionBaseFee;
-	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = ConvertInto;
-	type FeeMultiplierUpdate = ();
-}
-
 impl sudo::Trait for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -223,6 +214,7 @@ parameter_types! {
 }
 
 impl difficulty::Trait for Runtime {
+	type TimeProvider = Timestamp;
 	type TargetBlockTime = TargetBlockTime;
 	type DampFactor = DampFactor;
 	type ClampFactor = ClampFactor;
@@ -246,10 +238,10 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
+		//TODO Should we remove balance pallet? It isn't necessary and might be confusing
+		// alongside the UTXO tokens. But it is darn convenient for testing a quick transaction.
 		Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: transaction_payment::{Module, Storage},
 		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		DifficultyAdjustment: difficulty::{Module, Storage, Config},
 		BlockAuthor: block_author::{Module, Call, Storage, Inherent},
@@ -274,7 +266,6 @@ pub type SignedExtra = (
 	system::CheckEra<Runtime>,
 	system::CheckNonce<Runtime>,
 	system::CheckWeight<Runtime>,
-	transaction_payment::ChargeTransactionPayment<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
@@ -325,7 +316,9 @@ impl_runtime_apis! {
 		}
 
 		fn random_seed() -> <Block as BlockT>::Hash {
-			RandomnessCollectiveFlip::random_seed()
+			// This runtime does not have a randomness source so we jsut return the default Hash
+			// This should certainly not be treated as random.
+			Default::default()
 		}
 	}
 
