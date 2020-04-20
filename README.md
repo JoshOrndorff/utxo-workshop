@@ -92,7 +92,8 @@ cargo build --release
     "difficulty": "Difficulty",
     "timestamp": "Moment"
   },
-	"Public": "H256"
+  "Public": "H256",
+  "Weight": "u32"
 }
 ```
 
