@@ -265,19 +265,7 @@ impl<T: Trait> Module<T> {
 		trx.encode()
 	}
 
-	/// Helper fn for Transaction Pool
-	/// Checks for race condition, if a certain trx is missing input_utxos in UtxoStore
-	/// If None missing inputs: no race condition, gtg
-	/// if Some(missing inputs): there are missing variables
-	pub fn get_missing_utxos(transaction: &Transaction) -> Vec<&H256> {
-		let mut missing_utxos = Vec::new();
-		for input in transaction.inputs.iter() {
-			if <UtxoStore>::get(&input.outpoint).is_none() {
-				missing_utxos.push(&input.outpoint);
-			}
-		}
-		missing_utxos
-	}
+
 }
 
 /// Tests for this module
