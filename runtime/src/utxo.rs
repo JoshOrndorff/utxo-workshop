@@ -99,7 +99,6 @@ decl_module! {
 										&transaction.encode()
 									).unwrap();
 					print("==================");
-					// expects &[u8]
 					sp_io::misc::print_hex(H512::from(signature).as_bytes()); //TODO better to impl Printable for H512
 				}
 			}
