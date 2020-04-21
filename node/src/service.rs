@@ -90,12 +90,7 @@ macro_rules! new_full_start {
 pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public)
 	-> Result<impl AbstractService, ServiceError>
 {
-	let is_authority = config.roles.is_authority();
-
-	// sentry nodes announce themselves as authorities to the network
-	// and should run the same protocols authorities do, but it should
-	// never actively participate in any consensus process.
-	let participates_in_consensus = is_authority && !config.sentry_mode;
+	let participates_in_consensus = config.role.is_authority();
 
 	let (builder, mut import_setup, inherent_data_providers) = new_full_start!(config, sr25519_public_key);
 	let block_import = import_setup.take()

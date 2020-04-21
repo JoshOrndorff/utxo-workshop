@@ -3,6 +3,7 @@ use frame_support::{
 	decl_event, decl_module, decl_storage,
 	dispatch::{DispatchResult, Vec},
 	ensure,
+	weights::SimpleDispatchInfo,
 };
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -101,6 +102,7 @@ decl_module! {
 		fn deposit_event() = default;
 
 		/// Dispatch a single transaction and update UTXO set accordingly
+		#[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
 		pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
 									// TransactionValidity{}
 			let transaction_validity = Self::validate_transaction(&transaction)?;

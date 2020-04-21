@@ -5,7 +5,8 @@ use sp_std::vec::Vec;
 use sp_runtime::RuntimeString;
 use frame_support::{
 	decl_module, decl_storage, decl_error, ensure,
-	weights::SimpleDispatchInfo,
+	weights::{SimpleDispatchInfo, Weight},
+	dispatch::WeighData,
 };
 use system::ensure_none;
 use sp_inherents::{InherentIdentifier, InherentData, ProvideInherent, IsFatalError};
@@ -41,9 +42,12 @@ decl_module! {
 			<Self as Store>::Author::put(author);
 		}
 
-		fn on_initialize() {
+		fn on_initialize() -> Weight {
 			// Reset the author to None at the beginning of the block
 			<Self as Store>::Author::kill();
+
+			//TODO is this right? I cribbed it from babe pallet.
+			SimpleDispatchInfo::default().weigh_data(())
 		}
 	}
 }
