@@ -14,6 +14,7 @@ use sp_core::{
 };
 use sp_std::collections::btree_map::BTreeMap;
 use sp_runtime::{
+	print,
 	traits::{BlakeTwo256, Hash, SaturatedConversion},
 	transaction_validity::{TransactionLongevity, ValidTransaction},
 };
@@ -68,6 +69,55 @@ pub struct TransactionOutput {
 	pub pubkey: H256,
 }
 
+// External functions: callable by the end user
+decl_module! {
+	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+		fn deposit_event() = default;
+
+		/// Dispatch a single transaction and update UTXO set accordingly
+		pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
+									// TransactionValidity{}
+			let transaction_validity = Self::validate_transaction(&transaction)?;
+
+			Self::update_storage(&transaction, transaction_validity.priority as Value)?;
+
+			Self::deposit_event(Event::TransactionSuccess(transaction));
+
+			Ok(())
+		}
+
+		/// This is a SUPER UNSAFE demo/workshop HELPER FUNCTION ONLY
+		/// Generates input UTXO signatures for the user
+		/// TODO: Do not include this in a formal UTXO implementation
+		pub fn get_signatures(_origin, transaction: Transaction) -> DispatchResult {
+			for input in transaction.inputs.iter() {
+				if let Some(input_utxo) = <UtxoStore>::get(&input.outpoint) {
+					let pubkey = input_utxo.pubkey;
+					let signature = sp_io::crypto::sr25519_sign(
+										sp_core::testing::SR25519,
+										&Public::from_h256(pubkey),
+										&transaction.encode()
+									).unwrap();
+					print("==================");
+					// expects &[u8]
+					sp_io::misc::print_hex(H512::from(signature).as_bytes()); //TODO better to impl Printable for H512
+				}
+			}
+			Ok(())
+		}
+
+		/// Handler called by the system on block finalization
+		fn on_finalize() {
+			match T::BlockAuthor::block_author() {
+				// Block author did not provide key to claim reward
+				None => Self::deposit_event(Event::RewardsWasted),
+				// Block author did provide key, so issue their reward
+				Some(author) => Self::disperse_reward(&author),
+			}
+		}
+	}
+}
+
 decl_storage! {
 	trait Store for Module<T: Trait> as Utxo {
 		/// All valid unspent transaction outputs are stored in this map.
@@ -92,35 +142,6 @@ decl_storage! {
 
 	add_extra_genesis {
 		config(genesis_utxos): Vec<TransactionOutput>;
-	}
-}
-
-// External functions: callable by the end user
-decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-		fn deposit_event() = default;
-
-		/// Dispatch a single transaction and update UTXO set accordingly
-		pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
-									// TransactionValidity{}
-			let transaction_validity = Self::validate_transaction(&transaction)?;
-
-			Self::update_storage(&transaction, transaction_validity.priority as Value)?;
-
-			Self::deposit_event(Event::TransactionSuccess(transaction));
-
-			Ok(())
-		}
-
-		/// Handler called by the system on block finalization
-		fn on_finalize() {
-			match T::BlockAuthor::block_author() {
-				// Block author did not provide key to claim reward
-				None => Self::deposit_event(Event::RewardsWasted),
-				// Block author did provide key, so issue thir reward
-				Some(author) => Self::disperse_reward(&author),
-			}
-		}
 	}
 }
 
@@ -264,8 +285,6 @@ impl<T: Trait> Module<T> {
 
 		trx.encode()
 	}
-
-
 }
 
 /// Tests for this module
