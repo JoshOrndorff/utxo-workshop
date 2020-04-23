@@ -38,7 +38,7 @@ sp-inherents = '2.0.0-alpha.6'
 sp-runtime = '2.0.0-alpha.6'
 sp-timestamp = '2.0.0-alpha.6'
 sp-transaction-pool = '2.0.0-alpha.6'
-sha3pow = {path = './sha3pow'}
+sha3pow = { git = 'https://github.com/substrate-developer-hub/recipes', branch = 'joshy-hybrid-consensus'}
 hex = "0.4"
 
 [[bin]]
