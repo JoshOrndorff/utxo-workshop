@@ -108,10 +108,10 @@ jobs:
         node-version: '10.x'
 
     - name: Download pre-built node
-        uses: actions/download-artifact@v1
-        with:
-          name: utxo-workshop
-          path: target/release/utxo-workshop
+      uses: actions/download-artifact@v1
+      with:
+        name: utxo-workshop
+        path: target/release/utxo-workshop
 
     - name: Start background node
       run: ./target/release/utxo-workshop --dev &
