@@ -49,9 +49,9 @@ jobs:
 
     - name: Upload the built node
       uses: actions/upload-artifact@v1
-        with:
-          name: utxo-workshop
-          path: target/release/utxo-workshop
+      with:
+        name: utxo-workshop
+        path: target/release/utxo-workshop
 
   execute_runtime_tests:
     name: Execute Runtime Tests
