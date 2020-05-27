@@ -1,4 +1,4 @@
-name: Runtime Tests
+name: Tests
 
 on:
   pull_request:
@@ -51,7 +51,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: utxo-workshop
-        path: target/release/utxo-workshop
+        path: target/release/
 
   execute_runtime_tests:
     name: Execute Runtime Tests
@@ -80,8 +80,6 @@ jobs:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    # Not sure if it is correct to reinstall the toolchain like this....
-    # Maybe build and test should be one job?
     - name: Install toolchain
       uses: actions-rs/toolchain@v1
       with:
@@ -118,5 +116,5 @@ jobs:
 
     - name: Run the UX demo script
       run: cd ux-demo |
-           npm install
+           npm install |
            node index.js
