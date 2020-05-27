@@ -20,6 +20,7 @@ use sp_runtime::{
 		Block as BlockT,
 		IdentifyAccount,
 		IdentityLookup,
+		Saturating,
 		Verify,
 	},
 	transaction_validity::{
@@ -44,7 +45,10 @@ pub use frame_support::{
 	StorageValue, construct_runtime, parameter_types,
 	dispatch::IsSubType,
 	traits::Randomness,
-	weights::Weight,
+	weights::{
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		Weight,
+	},
 };
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -109,6 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 1,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -122,8 +127,11 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 250;
-	pub const MaximumBlockWeight: Weight = 1_000_000_000;
+	pub const MaximumBlockWeight: Weight = 5 * WEIGHT_PER_SECOND;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+	// Assume 10% of weight for average on_initialize calls.
+	pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
+		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
 }
@@ -153,6 +161,18 @@ impl system::Trait for Runtime {
 	type BlockHashCount = BlockHashCount;
 	/// Maximum weight of each block.
 	type MaximumBlockWeight = MaximumBlockWeight;
+	/// The weight of database operations that the runtime can invoke.
+	type DbWeight = RocksDbWeight;
+	/// The weight of the overhead invoked on the block import process, independent of the
+	/// extrinsics included in that block.
+	type BlockExecutionWeight = BlockExecutionWeight;
+	/// The base weight of any extrinsic processed by the runtime, independent of the
+	/// logic of that extrinsic. (Signature verification, nonce increment, fee, etc...)
+	type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
+	/// The maximum weight that a single extrinsic of `Normal` dispatch class can have,
+	/// idependent of the logic of that extrinsic. (Roughly max block weight - average on
+	/// initialize cost).
+	type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
 	/// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
 	type MaximumBlockLength = MaximumBlockLength;
 	/// Portion of the block weight that is available to all normal transactions.
@@ -256,7 +276,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-	system::CheckVersion<Runtime>,
+	system::CheckTxVersion<Runtime>,
 	system::CheckGenesis<Runtime>,
 	system::CheckEra<Runtime>,
 	system::CheckNonce<Runtime>,

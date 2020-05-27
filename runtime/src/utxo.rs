@@ -3,7 +3,6 @@ use frame_support::{
 	decl_event, decl_module, decl_storage,
 	dispatch::{DispatchResult, Vec},
 	ensure,
-	weights::SimpleDispatchInfo,
 };
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -88,7 +87,7 @@ decl_storage! {
 		/// Total reward value to be redistributed among authorities.
 		/// It is accumulated from transactions during block execution
 		/// and then dispersed to validators on block finalization.
-		pub RewardTotal get(reward_total): Value;
+		pub RewardTotal get(fn reward_total): Value;
 	}
 
 	add_extra_genesis {
@@ -102,7 +101,7 @@ decl_module! {
 		fn deposit_event() = default;
 
 		/// Dispatch a single transaction and update UTXO set accordingly
-		#[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
+		#[weight = 1_000_000] //TODO weight should be proportional to number of inputs + outputs
 		pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
 									// TransactionValidity{}
 			let transaction_validity = Self::validate_transaction(&transaction)?;
@@ -317,6 +316,10 @@ mod tests {
 		type Event = ();
 		type BlockHashCount = BlockHashCount;
 		type MaximumBlockWeight = MaximumBlockWeight;
+		type DbWeight = ();
+		type BlockExecutionWeight = ();
+		type ExtrinsicBaseWeight = ();
+		type MaximumExtrinsicWeight = MaximumBlockWeight;
 		type MaximumBlockLength = MaximumBlockLength;
 		type AvailableBlockRatio = AvailableBlockRatio;
 		type Version = ();

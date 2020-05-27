@@ -5,8 +5,7 @@ use sp_std::vec::Vec;
 use sp_runtime::RuntimeString;
 use frame_support::{
 	decl_module, decl_storage, decl_error, ensure,
-	weights::{SimpleDispatchInfo, Weight},
-	dispatch::WeighData,
+	weights::Weight,
 };
 use system::ensure_none;
 use sp_inherents::{InherentIdentifier, InherentData, ProvideInherent, IsFatalError};
@@ -34,7 +33,8 @@ decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 		type Error = Error<T>;
 
-		#[weight = SimpleDispatchInfo::FixedOperational(10_000)]
+		/// Inherent to set the author of a block
+		#[weight = 1_000_000]
 		fn set_author(origin, author: sr25519::Public) {
 			ensure_none(origin)?;
 			ensure!(Author::get().is_none(), Error::<T>::AuthorAlreadySet);
@@ -46,8 +46,9 @@ decl_module! {
 			// Reset the author to None at the beginning of the block
 			<Self as Store>::Author::kill();
 
-			//TODO is this right? I cribbed it from babe pallet.
-			SimpleDispatchInfo::default().weigh_data(())
+			// Return zero weight because we are not using weight-based
+			// transaction fees.
+			0
 		}
 	}
 }
