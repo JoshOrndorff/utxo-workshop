@@ -3871,6 +3871,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "sc-consensus"
+version = "0.8.0-rc2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9176e4a01034f620971cfc4523323cea712e29ef44340c57f559b67c24d0eccf"
+dependencies = [
+ "sc-client-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-runtime",
+]
+
+[[package]]
 name = "sc-consensus-pow"
 version = "0.8.0-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4510,6 +4522,7 @@ dependencies = [
  "parity-scale-codec",
  "rand 0.7.3",
  "sc-client-api",
+ "sc-consensus",
  "sc-consensus-pow",
  "sha3",
  "sp-api",
@@ -6001,6 +6014,7 @@ dependencies = [
  "sc-basic-authorship",
  "sc-cli",
  "sc-client-api",
+ "sc-consensus",
  "sc-consensus-pow",
  "sc-executor",
  "sc-network",
