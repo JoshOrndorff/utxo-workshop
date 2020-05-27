@@ -57,7 +57,7 @@ decl_storage! {
 		[Option<DifficultyAndTimestamp<<<T as Trait>::TimeProvider as Time>::Moment>>; 60]
 			= [None; DIFFICULTY_ADJUST_WINDOW as usize];
 		/// Current difficulty.
-		pub CurrentDifficulty get(difficulty) build(|config: &GenesisConfig| {
+		pub CurrentDifficulty get(fn difficulty) build(|config: &GenesisConfig| {
 			config.initial_difficulty
 		}): Difficulty;
 		/// Initial difficulty.

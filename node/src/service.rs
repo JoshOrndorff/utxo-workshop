@@ -1,7 +1,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use std::sync::Arc;
-use sc_client::LongestChain;
+use sc_consensus::LongestChain;
 use sc_client_api::ExecutorProvider;
 use utxo_runtime::{self, opaque::Block, RuntimeApi};
 use sc_service::{error::{Error as ServiceError}, AbstractService, Configuration, ServiceBuilder};
@@ -54,13 +54,18 @@ macro_rules! new_full_start {
 			utxo_runtime::opaque::Block, utxo_runtime::RuntimeApi, crate::service::Executor
 		>($config)?
 			.with_select_chain(|_config, backend| {
-				Ok(sc_client::LongestChain::new(backend.clone()))
+				Ok(sc_consensus::LongestChain::new(backend.clone()))
 			})?
-			.with_transaction_pool(|config, client, _fetcher| {
+			.with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
 				let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
-				Ok(sc_transaction_pool::BasicPool::new(config, std::sync::Arc::new(pool_api)))
+				Ok(sc_transaction_pool::BasicPool::new(
+					config,
+					std::sync::Arc::new(pool_api),
+					prometheus_registry,
+				))
 			})?
-			.with_import_queue(|_config, client, select_chain, _transaction_pool| {
+			.with_import_queue(
+				|_config, client, select_chain, _transaction_pool, spawn_task_handle, registry| {
 
 				let pow_block_import = sc_consensus_pow::PowBlockImport::new(
 					client.clone(),
@@ -73,8 +78,12 @@ macro_rules! new_full_start {
 
 				let import_queue = sc_consensus_pow::import_queue(
 					Box::new(pow_block_import.clone()),
+					None,
+					None,
 					sha3pow::Sha3Algorithm::new(client.clone()),
 					inherent_data_providers.clone(),
+					spawn_task_handle,
+					registry,
 				)?;
 
 				import_setup = Some(pow_block_import);
@@ -101,7 +110,8 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public)
 	if participates_in_consensus {
 		let proposer = sc_basic_authorship::ProposerFactory::new(
 			service.client(),
-			service.transaction_pool()
+			service.transaction_pool(),
+			service.prometheus_registry().as_ref(),
 		);
 
 		// The number of rounds of mining to try in a single call
@@ -142,17 +152,21 @@ pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public)
 		.with_select_chain(|_config, backend| {
 			Ok(LongestChain::new(backend.clone()))
 		})?
-		.with_transaction_pool(|config, client, fetcher| {
+		.with_transaction_pool(|config, client, fetcher, prometheus_registry| {
 			let fetcher = fetcher
 				.ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
 
 			let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
 			let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
-				config, Arc::new(pool_api), sc_transaction_pool::RevalidationType::Light,
+				config,
+				Arc::new(pool_api),
+				prometheus_registry,
+				sc_transaction_pool::RevalidationType::Light,
 			);
 			Ok(pool)
 		})?
-		.with_import_queue_and_fprb(|_config, client, _backend, _fetcher, select_chain, _tx_pool| {
+		.with_import_queue_and_fprb(
+			|_config, client, _backend, _fetcher, select_chain, _tx_pool, spawn_task_handle, registry| {
 			let finality_proof_request_builder =
 				Box::new(DummyFinalityProofRequestBuilder::default()) as Box<_>;
 
@@ -167,8 +181,12 @@ pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public)
 
 			let import_queue = sc_consensus_pow::import_queue(
 				Box::new(pow_block_import),
+				None,
+				None,
 				Sha3Algorithm::new(client),
 				build_inherent_data_providers(sr25519_public_key)?,
+				spawn_task_handle,
+				registry,
 			)?;
 
 			Ok((import_queue, finality_proof_request_builder))
