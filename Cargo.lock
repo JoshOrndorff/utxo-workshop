@@ -4517,8 +4517,8 @@ dependencies = [
 
 [[package]]
 name = "sha3pow"
-version = "2.0.0-alpha.6"
-source = "git+https://github.com/substrate-developer-hub/recipes?branch=joshy-hybrid-consensus#72111c91d7f9e0c9cee12b9f99d33b7cdfa08ffb"
+version = "2.0.0-rc2"
+source = "git+https://github.com/substrate-developer-hub/recipes?branch=release-rc2#525fa0dd37332cce4c5cf7dc3171261685abdd6b"
 dependencies = [
  "parity-scale-codec",
  "rand 0.7.3",
