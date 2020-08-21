@@ -29,7 +29,7 @@ pub fn clamp(actual: u128, goal: u128, clamp_factor: u128) -> u128 {
 
 /// Pallet's configuration trait.
 /// Tightly coupled to the timestamp trait because we need it's timestamp information
-pub trait Trait: system::Trait {
+pub trait Trait: frame_system::Trait {
 	/// A Source for timestamp data
 	type TimeProvider: Time;
 	/// The block time that the DAA will attempt to maintain
