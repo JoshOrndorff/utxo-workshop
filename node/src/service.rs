@@ -45,9 +45,6 @@ type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
-//TODO is this outrageous type definition the best way to handle this?
-// type PowBlockImport = sc_consensus_pow::PowBlockImport<Block, Arc<FullClient>, FullClient, FullSelectChain, Sha3Algorithm<FullClient>, impl sp_consensus::CanAuthorWith<Block>>;
-
 /// Returns most parts of a service. Not enough to run a full chain,
 /// But enough to perform chain operations like purge-chain
 pub fn new_partial(config: &Configuration, sr25519_public_key: sr25519::Public) -> Result<
