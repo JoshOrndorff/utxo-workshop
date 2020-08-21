@@ -29,8 +29,6 @@ pub fn build_inherent_data_providers(sr25519_public_key: sr25519::Public) -> Res
 		.map_err(Into::into)
 		.map_err(sp_consensus::error::Error::InherentData)?;
 
-
-	//if let Some(author) = author
 	providers
 		.register_provider(utxo_runtime::block_author::InherentDataProvider(
 			sr25519_public_key.encode(),
@@ -41,158 +39,230 @@ pub fn build_inherent_data_providers(sr25519_public_key: sr25519::Public) -> Res
 	Ok(providers)
 }
 
-/// Starts a `ServiceBuilder` for a full service.
-///
-/// Use this macro if you don't actually need the full service, but just the builder in order to
-/// be able to perform chain operations.
-macro_rules! new_full_start {
-	($config:expr, $sr25519_public_key:expr) => {{
-		let mut import_setup = None;
-		let inherent_data_providers = crate::service::build_inherent_data_providers($sr25519_public_key)?;
+type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+type FullBackend = sc_service::TFullBackend<Block>;
+type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+type OurServiceParams = sc_service::ServiceParams<
+	Block, FullClient,
+	BasicQueue<Block, TransactionFor<FullClient, Block>>,
+	sc_transaction_pool::FullPool<Block, FullClient>,
+	(), FullBackend,
+>;
+type PowBlockImport = sc_consensus_pow::PowBlockImport<Block, Arc<FullClient>, FullClient, FullSelectChain, MinimalSha3Algorithm>;
 
-		let builder = sc_service::ServiceBuilder::new_full::<
-			utxo_runtime::opaque::Block, utxo_runtime::RuntimeApi, crate::service::Executor
-		>($config)?
-			.with_select_chain(|_config, backend| {
-				Ok(sc_consensus::LongestChain::new(backend.clone()))
-			})?
-			.with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
-				let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
-				Ok(sc_transaction_pool::BasicPool::new(
-					config,
-					std::sync::Arc::new(pool_api),
-					prometheus_registry,
-				))
-			})?
-			.with_import_queue(
-				|_config, client, select_chain, _transaction_pool, spawn_task_handle, registry| {
+/// Returns most parts of a service. Not enough to run a full chain,
+/// But enough to perform chain operations like purge-chain
+pub fn new_full_params(config: Configuration) -> Result<(
+	OurServiceParams,
+	FullSelectChain,
+	sp_inherents::InherentDataProviders,
+	PowBlockImport,
+), ServiceError> {
+	let inherent_data_providers = build_inherent_data_providers()?;
 
-				let pow_block_import = sc_consensus_pow::PowBlockImport::new(
-					client.clone(),
-					client.clone(),
-					sha3pow::Sha3Algorithm::new(client.clone()),
-					0, // check inherents starting at block 0
-					select_chain,
-					inherent_data_providers.clone(),
-				);
+	let (client, backend, keystore, task_manager) =
+		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+	let client = Arc::new(client);
 
-				let import_queue = sc_consensus_pow::import_queue(
-					Box::new(pow_block_import.clone()),
-					None,
-					None,
-					sha3pow::Sha3Algorithm::new(client.clone()),
-					inherent_data_providers.clone(),
-					spawn_task_handle,
-					registry,
-				)?;
+	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
-				import_setup = Some(pow_block_import);
+	let pool_api = sc_transaction_pool::FullChainApi::new(
+		client.clone(), config.prometheus_registry(),
+	);
+	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
+		config.transaction_pool.clone(),
+		std::sync::Arc::new(pool_api),
+		config.prometheus_registry(),
+		task_manager.spawn_handle(),
+		client.clone(),
+	);
 
-				Ok(import_queue)
-			})?;
+	let pow_block_import = sc_consensus_pow::PowBlockImport::new(
+		client.clone(),
+		client.clone(),
+		sha3pow::MinimalSha3Algorithm,
+		0, // check inherents starting at block 0
+		Some(select_chain.clone()),
+		inherent_data_providers.clone(),
+	);
 
-		(builder, import_setup, inherent_data_providers)
-	}}
+	let import_queue = sc_consensus_pow::import_queue(
+		Box::new(pow_block_import.clone()),
+		None,
+		None,
+		sha3pow::MinimalSha3Algorithm,
+		inherent_data_providers.clone(),
+		&task_manager.spawn_handle(),
+		config.prometheus_registry(),
+	)?;
+
+	let params = sc_service::ServiceParams {
+		backend, client, import_queue, keystore, task_manager, transaction_pool,
+		config,
+		block_announce_validator_builder: None,
+		finality_proof_request_builder: None,
+		finality_proof_provider: None,
+		on_demand: None,
+		remote_blockchain: None,
+		rpc_extensions_builder: Box::new(|_| ()),
+	};
+
+	Ok((
+		params, select_chain, inherent_data_providers, pow_block_import
+	))
 }
 
+// macro_rules! new_full_start {
+// 	($config:expr, $sr25519_public_key:expr) => {{
+// 		let mut import_setup = None;
+// 		let inherent_data_providers = crate::service::build_inherent_data_providers($sr25519_public_key)?;
+//
+// 		let builder = sc_service::ServiceBuilder::new_full::<
+// 			utxo_runtime::opaque::Block, utxo_runtime::RuntimeApi, crate::service::Executor
+// 		>($config)?
+// 			.with_select_chain(|_config, backend| {
+// 				Ok(sc_consensus::LongestChain::new(backend.clone()))
+// 			})?
+// 			.with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
+// 				let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
+// 				Ok(sc_transaction_pool::BasicPool::new(
+// 					config,
+// 					std::sync::Arc::new(pool_api),
+// 					prometheus_registry,
+// 				))
+// 			})?
+// 			.with_import_queue(
+// 				|_config, client, select_chain, _transaction_pool, spawn_task_handle, registry| {
+//
+// 				let pow_block_import = sc_consensus_pow::PowBlockImport::new(
+// 					client.clone(),
+// 					client.clone(),
+// 					sha3pow::Sha3Algorithm::new(client.clone()),
+// 					0, // check inherents starting at block 0
+// 					select_chain,
+// 					inherent_data_providers.clone(),
+// 				);
+//
+// 				let import_queue = sc_consensus_pow::import_queue(
+// 					Box::new(pow_block_import.clone()),
+// 					None,
+// 					None,
+// 					sha3pow::Sha3Algorithm::new(client.clone()),
+// 					inherent_data_providers.clone(),
+// 					spawn_task_handle,
+// 					registry,
+// 				)?;
+//
+// 				import_setup = Some(pow_block_import);
+//
+// 				Ok(import_queue)
+// 			})?;
+//
+// 		(builder, import_setup, inherent_data_providers)
+// 	}}
+// }
+
 /// Builds a new service for a full client.
-pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public)
-	-> Result<impl AbstractService, ServiceError>
-{
-	let participates_in_consensus = config.role.is_authority();
+pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
+	let (params, select_chain, inherent_data_providers, block_import) = new_full_params(config)?;
 
-	let (builder, mut import_setup, inherent_data_providers) = new_full_start!(config, sr25519_public_key);
-	let block_import = import_setup.take()
-		.expect("Block Import is present for Full Services or setup failed before. qed");
+	let (
+		participates_in_consensus, prometheus_registry, client, transaction_pool
+	) = {
+		let sc_service::ServiceParams {
+			config, client, transaction_pool, ..
+		} = &params;
 
-	let service = builder.build()?;
+		(
+			config.role.is_authority(),
+			config.prometheus_registry().cloned(),
+			client.clone(),
+			transaction_pool.clone(),
+		)
+	};
+
+	let ServiceComponents { task_manager, network, .. } = sc_service::build(params)?;
 
 	if participates_in_consensus {
 		let proposer = sc_basic_authorship::ProposerFactory::new(
-			service.client(),
-			service.transaction_pool(),
-			service.prometheus_registry().as_ref(),
+			client.clone(),
+			transaction_pool,
+			prometheus_registry.as_ref(),
 		);
 
 		// The number of rounds of mining to try in a single call
 		let rounds = 500;
-
-		let client = service.client();
-		let select_chain = service.select_chain()
-			.ok_or(ServiceError::SelectChainRequired)?;
 
 		let can_author_with =
 			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
 		sc_consensus_pow::start_mine(
 			Box::new(block_import),
-			client.clone(),
-			Sha3Algorithm::new(client.clone()),
+			client,
+			MinimalSha3Algorithm,
 			proposer,
 			None, // No preruntime digests
 			rounds,
-			service.network(),
+			network,
 			std::time::Duration::new(2, 0),
 			// Choosing not to supply a select_chain means we will use the client's
 			// possibly-outdated metadata when fetching the block to mine on
 			Some(select_chain),
-			inherent_data_providers.clone(),
+			inherent_data_providers,
 			can_author_with,
 		);
 	}
 
-	Ok(service)
+	Ok(task_manager)
 }
 
 /// Builds a new service for a light client.
-pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public)
-	-> Result<impl AbstractService, ServiceError>
-{
-	ServiceBuilder::new_light::<Block, RuntimeApi, Executor>(config)?
-		.with_select_chain(|_config, backend| {
-			Ok(LongestChain::new(backend.clone()))
-		})?
-		.with_transaction_pool(|config, client, fetcher, prometheus_registry| {
-			let fetcher = fetcher
-				.ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
+pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
+	let (client, backend, keystore, task_manager, on_demand) =
+		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(&config)?;
 
-			let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
-			let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
-				config,
-				Arc::new(pool_api),
-				prometheus_registry,
-				sc_transaction_pool::RevalidationType::Light,
-			);
-			Ok(pool)
-		})?
-		.with_import_queue_and_fprb(
-			|_config, client, _backend, _fetcher, select_chain, _tx_pool, spawn_task_handle, registry| {
-			let finality_proof_request_builder =
-				Box::new(DummyFinalityProofRequestBuilder::default()) as Box<_>;
+	let transaction_pool_api = Arc::new(sc_transaction_pool::LightChainApi::new(
+		client.clone(), on_demand.clone(),
+	));
+	let transaction_pool = sc_transaction_pool::BasicPool::new_light(
+		config.transaction_pool.clone(),
+		transaction_pool_api,
+		config.prometheus_registry(),
+		task_manager.spawn_handle(),
+	);
 
-			let pow_block_import = sc_consensus_pow::PowBlockImport::new(
-				client.clone(),
-				client.clone(),
-				Sha3Algorithm::new(client.clone()),
-				0, // check_inherents_after,
-				select_chain,
-				build_inherent_data_providers(sr25519_public_key)?,
-			);
+	let select_chain = sc_consensus::LongestChain::new(backend.clone());
+	let inherent_data_providers = build_inherent_data_providers()?;
 
-			let import_queue = sc_consensus_pow::import_queue(
-				Box::new(pow_block_import),
-				None,
-				None,
-				Sha3Algorithm::new(client),
-				build_inherent_data_providers(sr25519_public_key)?,
-				spawn_task_handle,
-				registry,
-			)?;
+	let pow_block_import = sc_consensus_pow::PowBlockImport::new(
+		client.clone(),
+		client.clone(),
+		sha3pow::MinimalSha3Algorithm,
+		0, // check inherents starting at block 0
+		Some(select_chain),
+		inherent_data_providers.clone(),
+	);
 
-			Ok((import_queue, finality_proof_request_builder))
-		})?
-		.with_finality_proof_provider(|_client, _backend|
-			Ok(Arc::new(()) as _)
-		)?
-		.build()
+	let import_queue = sc_consensus_pow::import_queue(
+		Box::new(pow_block_import),
+		None,
+		None,
+		sha3pow::MinimalSha3Algorithm,
+		inherent_data_providers,
+		&task_manager.spawn_handle(),
+		config.prometheus_registry(),
+	)?;
+
+	let fprb = Box::new(DummyFinalityProofRequestBuilder::default()) as Box<_>;
+
+	sc_service::build(sc_service::ServiceParams {
+		block_announce_validator_builder: None,
+		finality_proof_request_builder: Some(fprb),
+		finality_proof_provider: None,
+		on_demand: Some(on_demand),
+		remote_blockchain: Some(backend.remote_blockchain()),
+		rpc_extensions_builder: Box::new(|_| ()),
+		transaction_pool: Arc::new(transaction_pool),
+		config, client, import_queue, keystore, backend, task_manager
+	 }).map(|ServiceComponents { task_manager, .. }| task_manager)
 }

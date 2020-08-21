@@ -20,28 +20,28 @@ use crate::chain_spec;
 use crate::cli::Cli;
 
 impl SubstrateCli for Cli {
-	fn impl_name() -> &'static str {
-		"Substrate Node"
+	fn impl_name() -> String {
+		"Substrate Node".into()
 	}
 
-	fn impl_version() -> &'static str {
-		env!("SUBSTRATE_CLI_IMPL_VERSION")
+	fn impl_version() -> String {
+		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
 	}
 
-	fn executable_name() -> &'static str {
-		env!("CARGO_PKG_NAME")
+	fn executable_name() -> String {
+		env!("CARGO_PKG_NAME").into()
 	}
 
-	fn author() -> &'static str {
-		env!("CARGO_PKG_AUTHORS")
+	fn author() -> String {
+		env!("CARGO_PKG_AUTHORS").into()
 	}
 
-	fn description() -> &'static str {
-		env!("CARGO_PKG_DESCRIPTION")
+	fn description() -> String {
+		env!("CARGO_PKG_DESCRIPTION").into()
 	}
 
-	fn support_url() -> &'static str {
-		"support.anonymous.an"
+	fn support_url() -> String {
+		"support.anonymous.an".into()
 	}
 
 	fn copyright_start_year() -> i32 {
@@ -57,6 +57,10 @@ impl SubstrateCli for Cli {
 			)?),
 		})
 	}
+
+	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+		&runtime::VERSION
+	}
 }
 
 /// Parse and run command line arguments
@@ -67,21 +71,19 @@ pub fn run() -> sc_cli::Result<()> {
 	match &cli.subcommand {
 		Some(subcommand) => {
 			let runner = cli.create_runner(subcommand)?;
-
-			runner.run_subcommand(
-				subcommand,
-				|config| Ok(new_full_start!(config, default_sr25519_public_key).0),
-			)
+			runner.run_subcommand(subcommand, |config| {
+				let (ServiceParams { client, backend, task_manager, import_queue, .. }, ..)
+					= new_full_params(config)?;
+				Ok((client, backend, import_queue, task_manager))
+			})
 		},
 		None => {
 			let sr25519_public_key = cli.run.sr25519_public_key.unwrap_or(default_sr25519_public_key);
 			let runner = cli.create_runner(&cli.run.base)?;
-
-			runner.run_node(
-				|config| service::new_light(config, sr25519_public_key),
-				|config| service::new_full(config, sr25519_public_key),
-				utxo_runtime::VERSION,
-			)
+			runner.run_node_until_exit(|config| match config.role {
+				Role::Light => service::new_light(config, sr25519_public_key),
+				_ => service::new_full(config, sr25519_public_key),
+			})
 		},
 	}
 }
