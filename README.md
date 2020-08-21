@@ -13,13 +13,13 @@ Substrate Version: `2.0.0-rc6`. For educational purposes only.
 
 - [Advanced Workshop](#Advanced-Workshop): A self guided, 2 hour video tutorial, that teaches you how to build a UTXO blockchain from scratch.
 
-- [Helpful Resources](#Helpful-Resources): Additional supporting documentation and references for troubleshooting. 
+- [Helpful Resources](#Helpful-Resources): Additional supporting documentation and references for troubleshooting.
 
 
 ## Installation
 
 ### 1. Install or update Rust
-```zsh
+```bash
 curl https://sh.rustup.rs -sSf | sh
 
 # On Windows, download and run rustup-init.exe
@@ -28,14 +28,13 @@ curl https://sh.rustup.rs -sSf | sh
 rustup update nightly
 rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup update stable
-cargo install --git https://github.com/alexcrichton/wasm-gc
 ```
 
 ### 2. Clone this workshop
 
 Clone your copy of the workshop codebase
 
-```zsh
+```bash
 git clone https://github.com/substrate-developer-hub/utxo-workshop.git
 ```
 
@@ -47,28 +46,21 @@ The following example takes you through a scenario where:
 - Alice already owns a UTXO of value 100 upon genesis
 - Alice sends Bob a UTXO with value 50, tipping the remainder to validators
 
-1. Compile and build a release in dev mode:
-```
-# Initialize your Wasm Build environment:
-./scripts/init.sh
-
-# Build Wasm and native code:
+1. Compile and build a release node
+```bash
 cargo build --release
 ```
 
-2. Start your node & start producing blocks:
-```zsh
-./target/release/utxo-workshop --dev
-
-# If you already modified state, run this to purge the chain
-./target/release/utxo-workshop purge-chain --dev
+2. Start a node. The `--dev` flag will start a single mining node, and the `--tmp` flag will start it in a new temporary directory.
+```bash
+./target/release/utxo-workshop --dev --tmp
 ```
 
 3. In the console note the helper printouts. In particular, notice the default account `Alice` already has `100 UTXO` within the genesis block.
 
 4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings) making sure the client is connected to your local node by going to Settings > General and selecting `Local Node` in the `remote node` dropdown.
 
-5. **Declare custom datatypes in PolkadotJS** as the JS client cannot automatically infer this information from the UTXO module. To do this, go to Settings > Developer tab and paste in the following JSON:
+5. **Declare custom datatypes in PolkadotJS** as the frontend cannot automatically detect this information. To do this, go to Settings > Developer tab and paste in the following JSON:
 
 ```json
 {
