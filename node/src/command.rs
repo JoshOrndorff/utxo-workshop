@@ -75,7 +75,7 @@ pub fn run() -> sc_cli::Result<()> {
 			let runner = cli.create_runner(subcommand)?;
 			runner.run_subcommand(subcommand, |config| {
 				let PartialComponents { client, backend, task_manager, import_queue, .. }
-					= new_partial(config)?;
+					= new_partial(&config, default_sr25519_public_key)?;
 				Ok((client, backend, import_queue, task_manager))
 			})
 		},

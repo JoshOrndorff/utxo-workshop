@@ -12,8 +12,9 @@ use sc_network::{config::DummyFinalityProofRequestBuilder};
 use core::clone::Clone;
 use sp_core::sr25519;
 use parity_scale_codec::Encode;
-use sp_consensus::{import_queue::BasicQueue, CanAuthorWithNativeVersion};
+use sp_consensus::import_queue::BasicQueue;
 use sp_api::TransactionFor;
+use sc_client_api::backend::RemoteBackend;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -43,9 +44,9 @@ pub fn build_inherent_data_providers(sr25519_public_key: sr25519::Public) -> Res
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-type PowBlockImport = sc_consensus_pow::PowBlockImport<Block, Arc<FullClient>, FullClient, FullSelectChain, Sha3Algorithm<FullClient>, CanAuthorWithNativeVersion<Executor>>;
-// HELP NEEDED! -->                                                                                 What type is supposed to go here?? ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+//TODO is this outrageous type definition the best way to handle this?
+// type PowBlockImport = sc_consensus_pow::PowBlockImport<Block, Arc<FullClient>, FullClient, FullSelectChain, Sha3Algorithm<FullClient>, impl sp_consensus::CanAuthorWith<Block>>;
 
 /// Returns most parts of a service. Not enough to run a full chain,
 /// But enough to perform chain operations like purge-chain
@@ -54,14 +55,14 @@ pub fn new_partial(config: &Configuration, sr25519_public_key: sr25519::Public) 
 		FullClient, FullBackend, FullSelectChain,
 		BasicQueue<Block, TransactionFor<FullClient, Block>>,
 		sc_transaction_pool::FullPool<Block, FullClient>,
-		PowBlockImport,
+		sc_consensus_pow::PowBlockImport<Block, Arc<FullClient>, FullClient, FullSelectChain, Sha3Algorithm<FullClient>, impl sp_consensus::CanAuthorWith<Block>>,
 	>,
 ServiceError> {
 	let inherent_data_providers = build_inherent_data_providers(sr25519_public_key)?;
 
 	let (client, backend, keystore, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
-	let client = Arc::new(client);
+	let client : std::sync::Arc<_> = Arc::new(client);
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
@@ -96,7 +97,7 @@ ServiceError> {
 	)?;
 
 	Ok(PartialComponents {
-		backend, client, import_queue, keystore, task_manager, transaction_pool,
+		client, backend, import_queue, keystore, task_manager, transaction_pool,
 		select_chain, inherent_data_providers,
 		other: pow_block_import,
 	})
@@ -110,7 +111,7 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 		other: pow_block_import,
 	} = new_partial(&config, sr25519_public_key)?;
 
-	let (network, network_status_sinks, system_rpc_tx, network_starter) =
+	let (network, network_status_sinks, system_rpc_tx, _network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
 			client: client.clone(),
@@ -124,9 +125,6 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 		})?;
 
 	let role = config.role.clone();
-	let force_authoring = config.force_authoring;
-	let name = config.network.node_name.clone();
-	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
 
@@ -145,7 +143,7 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 
 
 
-	if config.role.is_authority() {
+	if role.is_authority() {
 		let proposer = sc_basic_authorship::ProposerFactory::new(
 			client.clone(),
 			transaction_pool,
@@ -160,7 +158,7 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 
 		sc_consensus_pow::start_mine(
 			Box::new(pow_block_import),
-			client,
+			client.clone(),
 			Sha3Algorithm::new(client.clone()),
 			proposer,
 			None, // No preruntime digests
@@ -180,18 +178,16 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 
 /// Builds a new service for a light client.
 pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public) -> Result<TaskManager, ServiceError> {
-	let (client, backend, keystore, task_manager, on_demand) =
+	let (client, backend, keystore, mut task_manager, on_demand) =
 		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(&config)?;
 
-	let transaction_pool_api = Arc::new(sc_transaction_pool::LightChainApi::new(
-		client.clone(), on_demand.clone(),
-	));
-	let transaction_pool = sc_transaction_pool::BasicPool::new_light(
+	let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_light(
 		config.transaction_pool.clone(),
-		transaction_pool_api,
 		config.prometheus_registry(),
 		task_manager.spawn_handle(),
-	);
+		client.clone(),
+		on_demand.clone(),
+	));
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 	let inherent_data_providers = build_inherent_data_providers(sr25519_public_key)?;
@@ -205,7 +201,8 @@ pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public) -> 
 		0, // check inherents starting at block 0
 		Some(select_chain),
 		inherent_data_providers.clone(),
-		can_author_with,
+		// TODO what should I Really use here? This compiles, and the `can_author_with` from line 196 doesn't??
+		sp_consensus::AlwaysCanAuthor,
 	);
 
 	let import_queue = sc_consensus_pow::import_queue(
@@ -213,23 +210,12 @@ pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public) -> 
 		None,
 		None,
 		Sha3Algorithm::new(client.clone()),
-		inherent_data_providers,
+		inherent_data_providers.clone(),
 		&task_manager.spawn_handle(),
 		config.prometheus_registry(),
 	)?;
 
 	let fprb = Box::new(DummyFinalityProofRequestBuilder::default()) as Box<_>;
-
-	// sc_service::build(sc_service::ServiceParams {
-	// 	block_announce_validator_builder: None,
-	// 	finality_proof_request_builder: Some(fprb),
-	// 	finality_proof_provider: None,
-	// 	on_demand: Some(on_demand),
-	// 	remote_blockchain: Some(backend.remote_blockchain()),
-	// 	rpc_extensions_builder: Box::new(|_| ()),
-	// 	transaction_pool: Arc::new(transaction_pool),
-	// 	config, client, import_queue, keystore, backend, task_manager
-	// }).map(|PartialComponents { task_manager, .. }| task_manager)
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
