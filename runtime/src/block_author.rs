@@ -7,14 +7,14 @@ use frame_support::{
 	decl_module, decl_storage, decl_error, ensure,
 	weights::Weight,
 };
-use system::ensure_none;
+use frame_system::ensure_none;
 use sp_inherents::{InherentIdentifier, InherentData, ProvideInherent, IsFatalError};
 #[cfg(feature = "std")]
 use sp_inherents::ProvideInherentData;
 use codec::{Encode, Decode};
 
 /// The pallet's configuration trait. Nothing to configure.
-pub trait Trait: system::Trait {}
+pub trait Trait: frame_system::Trait {}
 
 decl_error! {
 	pub enum Error for Module<T: Trait> {

@@ -19,15 +19,15 @@ use sp_runtime::{
 };
 use super::{block_author::BlockAuthor, issuance::Issuance};
 
-pub trait Trait: system::Trait {
+pub trait Trait: frame_system::Trait {
 	/// The ubiquitous Event type
-	type Event: From<Event> + Into<<Self as system::Trait>::Event>;
+	type Event: From<Event> + Into<<Self as frame_system::Trait>::Event>;
 
 	/// A source to determine the block author
 	type BlockAuthor: BlockAuthor;
 
 	/// A source to determine the issuance portion of the block reward
-	type Issuance: Issuance<<Self as system::Trait>::BlockNumber, Value>;
+	type Issuance: Issuance<<Self as frame_system::Trait>::BlockNumber, Value>;
 }
 
 pub type Value = u128;
@@ -242,7 +242,7 @@ impl<T: Trait> Module<T> {
 
 	/// Redistribute combined reward value to block Author
 	fn disperse_reward(author: &Public) {
-		let reward = RewardTotal::take() + T::Issuance::issuance(system::Module::<T>::block_number());
+		let reward = RewardTotal::take() + T::Issuance::issuance(frame_system::Module::<T>::block_number());
 
 		let utxo = TransactionOutput {
 			value: reward,
@@ -250,7 +250,7 @@ impl<T: Trait> Module<T> {
 		};
 
 		let hash = BlakeTwo256::hash_of(&(&utxo,
-					<system::Module<T>>::block_number().saturated_into::<u64>()));
+					<frame_system::Module<T>>::block_number().saturated_into::<u64>()));
 
 		<UtxoStore>::insert(hash, utxo);
 		Self::deposit_event(Event::RewardsIssued(reward, hash));
@@ -303,7 +303,8 @@ mod tests {
 			pub const MaximumBlockLength: u32 = 2 * 1024;
 			pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	}
-	impl system::Trait for Test {
+	impl frame_system::Trait for Test {
+		type BaseCallFilter = ();
 		type Origin = Origin;
 		type Call = ();
 		type Index = u64;
@@ -327,6 +328,7 @@ mod tests {
 		type AccountData = ();
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
+		type SystemWeightInfo = ();
 	}
 
 	impl Trait for Test {
@@ -350,7 +352,7 @@ mod tests {
 		let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
 		let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
 
-		let mut t = system::GenesisConfig::default()
+		let mut t = frame_system::GenesisConfig::default()
 			.build_storage::<Test>()
 			.unwrap();
 

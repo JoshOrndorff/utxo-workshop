@@ -43,7 +43,7 @@ pub use balances::Call as BalancesCall;
 pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
 	StorageValue, construct_runtime, parameter_types,
-	dispatch::IsSubType,
+	dispatch::{Callable, IsSubType},
 	traits::Randomness,
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -130,13 +130,15 @@ parameter_types! {
 	pub const MaximumBlockWeight: Weight = 5 * WEIGHT_PER_SECOND;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	// Assume 10% of weight for average on_initialize calls.
-	pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
+	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
 		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
 }
 
-impl system::Trait for Runtime {
+impl frame_system::Trait for Runtime {
+	/// The basic call filter to use in dispatchable.
+	type BaseCallFilter = ();
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -189,6 +191,8 @@ impl system::Trait for Runtime {
 	type OnKilledAccount = ();
 	/// The data to be stored in an account.
 	type AccountData = balances::AccountData<Balance>;
+	/// Weight information for the extrinsics of this pallet.
+	type SystemWeightInfo = ();
 }
 
 parameter_types! {
@@ -200,6 +204,7 @@ impl timestamp::Trait for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -214,6 +219,7 @@ impl balances::Trait for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
+	type WeightInfo = ();
 }
 
 impl sudo::Trait for Runtime {
@@ -252,7 +258,7 @@ construct_runtime!(
 		NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
-		System: system::{Module, Call, Config, Storage, Event<T>},
+		System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		Timestamp: timestamp::{Module, Call, Storage, Inherent},
 		//TODO Should we remove balance pallet? It isn't necessary and might be confusing
 		// alongside the UTXO tokens. But it is darn convenient for testing a quick transaction.
@@ -276,18 +282,18 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-	system::CheckTxVersion<Runtime>,
-	system::CheckGenesis<Runtime>,
-	system::CheckEra<Runtime>,
-	system::CheckNonce<Runtime>,
-	system::CheckWeight<Runtime>,
+	frame_system::CheckTxVersion<Runtime>,
+	frame_system::CheckGenesis<Runtime>,
+	frame_system::CheckEra<Runtime>,
+	frame_system::CheckNonce<Runtime>,
+	frame_system::CheckWeight<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<Runtime, Block, system::ChainContext<Runtime>, Runtime, AllModules>;
+pub type Executive = frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllModules>;
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -343,7 +349,7 @@ impl_runtime_apis! {
 			tx: <Block as BlockT>::Extrinsic,
 		) -> TransactionValidity {
 			// Extrinsics representing UTXO transaction need some special handling
-			if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<Utxo, Runtime>::is_sub_type(&tx.function) {
+			if let Some(&utxo::Call::spend(ref transaction)) = IsSubType::<<Utxo as Callable<Runtime>>::Call>::is_sub_type(&tx.function) {
 				match Utxo::validate_transaction(&transaction) {
 					// Transaction verification failed
 					Err(e) => {
