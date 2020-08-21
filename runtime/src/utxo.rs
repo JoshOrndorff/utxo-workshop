@@ -304,6 +304,7 @@ mod tests {
 			pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	}
 	impl frame_system::Trait for Test {
+		type BaseCallFilter = ();
 		type Origin = Origin;
 		type Call = ();
 		type Index = u64;
@@ -351,7 +352,7 @@ mod tests {
 		let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
 		let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
 
-		let mut t = system::GenesisConfig::default()
+		let mut t = frame_system::GenesisConfig::default()
 			.build_storage::<Test>()
 			.unwrap();
 
