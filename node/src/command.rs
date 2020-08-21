@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-use sc_cli::{SubstrateCli};
 use crate::service;
 use crate::chain_spec;
 use crate::cli::Cli;
+use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
+use sc_service::PartialComponents;
+use crate::service::new_partial;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -59,7 +61,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&runtime::VERSION
+		&utxo_runtime::VERSION
 	}
 }
 
@@ -72,8 +74,8 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(subcommand) => {
 			let runner = cli.create_runner(subcommand)?;
 			runner.run_subcommand(subcommand, |config| {
-				let (ServiceParams { client, backend, task_manager, import_queue, .. }, ..)
-					= new_full_params(config)?;
+				let PartialComponents { client, backend, task_manager, import_queue, .. }
+					= new_partial(config)?;
 				Ok((client, backend, import_queue, task_manager))
 			})
 		},
