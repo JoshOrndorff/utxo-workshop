@@ -1,19 +1,19 @@
 # UTXO on Substrate
 
-A UTXO chain implementation on Substrate, with two self-guided workshops.Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
+A UTXO chain implementation on Substrate, with two self-guided workshops. Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
 
 Substrate Version: `2.0.0-rc6`. For educational purposes only.
 
 ## Table of Contents
 - [Installation](#Installation): Setting up Rust & Substrate dependencies
 
-- [UI Demo](#UI-Demo): Demoing this UTXO implementation in a simple UI
+- [UI Demo](#UI-Demo): Demo of UTXO implementation in a simple UI
 
-- [Beginner Workshop](#Beginner-Workshop): A self guided, 1 hour workshop that familiarizes you with Substrate basics
+- [Beginner Workshop](#Beginner-Workshop): A self guided, 1 hour workshop that familiarizes you with Substrate.
 
-- [Advanced Workshop](#Advanced-Workshop): A self guided, 2 hour video tutorial, that teaches you how to build this UTXO blockchain from scratch
+- [Advanced Workshop](#Advanced-Workshop): A self guided, 2 hour video tutorial, that teaches you how to build a UTXO blockchain from scratch.
 
-- [Helpful Resources](#Helpful-Resources): Documentation and references if you get stuck in the workshops
+- [Helpful Resources](#Helpful-Resources): Additional supporting documentation and references for troubleshooting. 
 
 
 ## Installation
@@ -43,11 +43,11 @@ git clone https://github.com/substrate-developer-hub/utxo-workshop.git
 
 In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js).
 
-The following demo takes you through a scenario where:
+The following example takes you through a scenario where:
 - Alice already owns a UTXO of value 100 upon genesis
 - Alice sends Bob a UTXO with value 50, tipping the remainder to validators
 
-1. Compile and build a release in dev mode
+1. Compile and build a release in dev mode:
 ```
 # Initialize your Wasm Build environment:
 ./scripts/init.sh
@@ -64,11 +64,11 @@ cargo build --release
 ./target/release/utxo-workshop purge-chain --dev
 ```
 
-3. In the console, notice the helper printouts. In particular, notice the default account `Alice` was already has `100 UTXO` upon the genesis block.
+3. In the console note the helper printouts. In particular, notice the default account `Alice` already has `100 UTXO` within the genesis block.
 
-4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings), making sure the client is connected to your local node by going to Settings > General, and selecting `Local Node` in the `remote node` dropdown.
+4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings) making sure the client is connected to your local node by going to Settings > General and selecting `Local Node` in the `remote node` dropdown.
 
-5. **Declare the custom datatypes in PolkadotJS**, since the JS client cannot automatically infer this from the UTXO module. Go to Settings > Developer tab and paste in the following JSON:
+5. **Declare custom datatypes in PolkadotJS** as the JS client cannot automatically infer this information from the UTXO module. To do this, go to Settings > Developer tab and paste in the following JSON:
 
 ```json
 {
@@ -109,7 +109,7 @@ cargo build --release
     - value: `50`
     - pubkey: `0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48`
 
-    Send this as an `unsigned` transaction. With UTXO blockchains, the proof is already in the `sigscript` input.
+    Send as an `unsigned` transaction. With UTXO blockchains, the proof is already in the `sigscript` input.
 
 8. **Verify that your transaction succeeded**. In `Chain State`, look up the newly created UTXO hash: `0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6` to verify that a new UTXO of 50, belonging to Bob, now exists! Also you can verify that Alice's original UTXO has been spent and no longer exists in UtxoStore.
 
@@ -118,12 +118,12 @@ cargo build --release
 ## Beginner Workshop
 **Estimated time**: 2 hours
 
-In this workshop, you will:
+In this workshop you will:
 - Get familiar with basic Rust and Substrate functionality
 - Prevent malicious users from sending bad UTXO transactions
 
 Your challenge is to fix the code such that:
-1. The Rust compiler compiles without errors
+1. The Rust compiler compiles without any errors
 2. All tests in `utxo.rs` pass, ensuring secure transactions
 
 ### Directions
@@ -134,7 +134,7 @@ git fetch origin workshop:workshop
 git checkout workshop
 ```
 
-2. Cd into the base directory. Try running the test with: `cargo test -p utxo-runtime`.
+2. Cd into the base directory. Run the test using: `cargo test -p utxo-runtime`.
 
 ```zsh
 compiling utxo-runtime v2.0.0 (/Users/nicole/Desktop/utxo-workshop/runtime)
