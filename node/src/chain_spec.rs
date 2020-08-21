@@ -107,7 +107,7 @@ fn testnet_genesis(
 	println!("NEW UTXO HASH in UTXOStore onchain: 0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6\n");
 
 	GenesisConfig {
-		system: Some(SystemConfig {
+		frame_system: Some(SystemConfig {
 			code: WASM_BINARY.to_vec(),
 			changes_trie_config: Default::default(),
 		}),
