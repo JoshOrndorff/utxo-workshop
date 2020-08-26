@@ -343,6 +343,8 @@ mod tests {
 	use hex_literal::hex;
 
 	const ALICE_PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	// other random account generated with subkey
+	const KARL_PHRASE: &str = "monitor exhibit resource stumble subject nut valid furnace obscure misery satoshi assume";
 	const GENESIS_UTXO: [u8; 32] = hex!("79eabcbd5ef6e958c6a7851b36da07691c19bda1835a08f875aa286911800999");
 
 	// This function basically just builds a genesis storage key/value store according to our desired mockup.
@@ -351,6 +353,7 @@ mod tests {
 
 		let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
 		let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
+		let karl_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(KARL_PHRASE)).unwrap();
 
 		let mut t = frame_system::GenesisConfig::default()
 			.build_storage::<Test>()
@@ -400,6 +403,34 @@ mod tests {
 
 			assert_ok!(Utxo::spend(Origin::signed(0), transaction));
 			assert!(!UtxoStore::contains_key(H256::from(GENESIS_UTXO)));
+			assert!(UtxoStore::contains_key(new_utxo_hash));
+			assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
+		});
+	}
+
+	#[test]
+	fn attack_with_missing_account() {
+		new_test_ext().execute_with(|| {
+			let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
+			let karl_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[1];
+
+			// Alice wants to send herself a new utxo of value 50.
+			let mut transaction = Transaction {
+				inputs: vec![TransactionInput {
+					outpoint: H256::from(karl_pub_key),
+					sigscript: H512::zero(),
+				}],
+				outputs: vec![TransactionOutput {
+					value: 50,
+					pubkey: H256::from(alice_pub_key),
+				}],
+			};
+
+			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
+			transaction.inputs[0].sigscript = H512::from(alice_signature);
+			let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64));
+
+			assert_ok!(Utxo::spend(Origin::signed(0), transaction));
 			assert!(UtxoStore::contains_key(new_utxo_hash));
 			assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
 		});
