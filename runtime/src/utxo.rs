@@ -483,11 +483,8 @@ mod tests {
 
 			let karl_signature = sp_io::crypto::sr25519_sign(SR25519, &karl_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(karl_signature);
-			let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64));
 
-			assert_ok!(Utxo::spend(Origin::signed(0), transaction));
-			assert!(UtxoStore::contains_key(new_utxo_hash));
-			assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
+			assert_noop!(Utxo::spend(Origin::signed(0), transaction), "missing inputs");
 		});
 	}
 
