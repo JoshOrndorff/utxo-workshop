@@ -353,7 +353,6 @@ mod tests {
 
 		let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
 		let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
-		let karl_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(KARL_PHRASE)).unwrap();
 
 		let mut t = frame_system::GenesisConfig::default()
 			.build_storage::<Test>()
@@ -378,6 +377,37 @@ mod tests {
 		let mut ext = sp_io::TestExternalities::from(t);
 		ext.register_extension(KeystoreExt(keystore));
 		ext
+	}
+
+	fn new_test_ext_and_keys() -> (sp_io::TestExternalities, Public, Public) {
+
+		let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
+		let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
+		let karl_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(KARL_PHRASE)).unwrap();
+
+		let mut t = frame_system::GenesisConfig::default()
+			.build_storage::<Test>()
+			.unwrap();
+
+		t.top.extend(
+			GenesisConfig {
+				genesis_utxos: vec![
+					TransactionOutput {
+						value: 100,
+						pubkey: H256::from(alice_pub_key),
+					}
+				],
+				..Default::default()
+			}
+			.build_storage()
+			.unwrap()
+			.top,
+		);
+
+		// Print the values to get GENESIS_UTXO
+		let mut ext = sp_io::TestExternalities::from(t);
+		ext.register_extension(KeystoreExt(keystore));
+		(ext, alice_pub_key, karl_pub_key)
 	}
 
 	#[test]
@@ -410,11 +440,8 @@ mod tests {
 
 	#[test]
 	fn attack_with_missing_account() {
-		new_test_ext().execute_with(|| {
-			let alice_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[0];
-			let karl_pub_key = sp_io::crypto::sr25519_public_keys(SR25519)[1];
-
-			// Alice wants to send herself a new utxo of value 50.
+		let (mut test_ext, alice_pub_key, karl_pub_key) = new_test_ext_and_keys();
+		test_ext.execute_with(|| {
 			let mut transaction = Transaction {
 				inputs: vec![TransactionInput {
 					outpoint: H256::from(karl_pub_key),
@@ -428,6 +455,32 @@ mod tests {
 
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
+			let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64));
+
+			assert_ok!(Utxo::spend(Origin::signed(0), transaction));
+			assert!(UtxoStore::contains_key(new_utxo_hash));
+			assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
+		});
+	}
+
+	#[test]
+	fn attack_with_sending_to_own_account() {
+		let (mut test_ext, _alice, karl_pub_key) = new_test_ext_and_keys();
+		test_ext.execute_with(|| {
+			// Karl wants to send himself a new utxo of value 50 out of thin air.
+			let mut transaction = Transaction {
+				inputs: vec![TransactionInput {
+					outpoint: H256::from(karl_pub_key),
+					sigscript: H512::zero(),
+				}],
+				outputs: vec![TransactionOutput {
+					value: 50,
+					pubkey: H256::from(karl_pub_key),
+				}],
+			};
+
+			let karl_signature = sp_io::crypto::sr25519_sign(SR25519, &karl_pub_key, &transaction.encode()).unwrap();
+			transaction.inputs[0].sigscript = H512::from(karl_signature);
 			let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64));
 
 			assert_ok!(Utxo::spend(Origin::signed(0), transaction));
