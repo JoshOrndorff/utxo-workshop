@@ -105,6 +105,7 @@ decl_module! {
 		pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
 									// TransactionValidity{}
 			let transaction_validity = Self::validate_transaction(&transaction)?;
+			ensure!(transaction_validity.requires.is_empty(), "missing inputs");
 
 			Self::update_storage(&transaction, transaction_validity.priority as Value)?;
 
