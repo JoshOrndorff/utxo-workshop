@@ -286,7 +286,7 @@ impl<T: Trait> Module<T> {
 mod tests {
 	use super::*;
 
-	use frame_support::{assert_ok, assert_err, impl_outer_origin, parameter_types, weights::Weight};
+	use frame_support::{assert_ok, assert_noop, impl_outer_origin, parameter_types, weights::Weight};
 	use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
 	use sp_core::testing::{KeyStore, SR25519};
 	use sp_core::traits::KeystoreExt;
@@ -442,8 +442,11 @@ mod tests {
 	fn attack_with_missing_account() {
 		let (mut test_ext, alice_pub_key, karl_pub_key) = new_test_ext_and_keys();
 		test_ext.execute_with(|| {
+			// Construct a transaction that consumes a bogus input, and sends 50 tokens to Alice.
 			let mut transaction = Transaction {
 				inputs: vec![TransactionInput {
+					// @apopiak outpoint is supposed to be a utxo hash, not a pubkey.
+					// Karl's key works because it happens to be the same number of bits.
 					outpoint: H256::from(karl_pub_key),
 					sigscript: H512::zero(),
 				}],
@@ -453,13 +456,12 @@ mod tests {
 				}],
 			};
 
+			// Alice signs the transaction
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
-			let new_utxo_hash = BlakeTwo256::hash_of(&(&transaction.encode(), 0 as u64));
 
-			assert_ok!(Utxo::spend(Origin::signed(0), transaction));
-			assert!(UtxoStore::contains_key(new_utxo_hash));
-			assert_eq!(50, UtxoStore::get(new_utxo_hash).unwrap().value);
+
+			assert_noop!(Utxo::spend(Origin::signed(0), transaction), "missing inputs");
 		});
 	}
 
@@ -492,12 +494,12 @@ mod tests {
 	#[test]
 	fn attack_with_empty_transactions() {
 		new_test_ext().execute_with(|| {
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), Transaction::default()), // an empty trx
 				"no inputs"
 			);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(
 					Origin::signed(0),
 					Transaction {
@@ -537,7 +539,7 @@ mod tests {
 			transaction.inputs[0].sigscript = H512::from(alice_signature.clone());
 			transaction.inputs[1].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"each input must only be used once"
 			);
@@ -571,7 +573,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"each output must be defined only once"
 			);
@@ -595,7 +597,7 @@ mod tests {
 				}],
 			};
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"signature must be valid"
 			);
@@ -622,7 +624,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"output value must be nonzero"
 			);
@@ -655,7 +657,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"output value overflow"
 			);
@@ -688,7 +690,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"output value must not exceed input value"
 			);
