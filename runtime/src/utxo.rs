@@ -447,7 +447,7 @@ mod tests {
 			// Karl wants to send himself a new utxo of value 50 out of thin air.
 			let mut transaction = Transaction {
 				inputs: vec![TransactionInput {
-					outpoint: H256::from(karl_pub_key),
+					outpoint: H256::zero(),
 					sigscript: H512::zero(),
 				}],
 				outputs: vec![TransactionOutput {
