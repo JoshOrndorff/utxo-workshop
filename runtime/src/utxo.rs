@@ -68,6 +68,16 @@ pub struct TransactionOutput {
 	pub pubkey: H256,
 }
 
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Encode, Decode, Hash, Debug)]
+pub struct ArchivedTransaction {
+	/// UTXOs spent/used as input
+	pub inputs: Vec<TransactionOutput>,
+
+	/// output hashes
+	pub outputs: Vec<H256>
+}
+
 decl_storage! {
 	trait Store for Module<T: Trait> as Utxo {
 		/// All valid unspent transaction outputs are stored in this map.
@@ -83,6 +93,11 @@ decl_storage! {
 				.map(|u| (BlakeTwo256::hash_of(&u), u))
 				.collect::<Vec<_>>()
 		}): map hasher(identity) H256 => Option<TransactionOutput>;
+
+		/// Map spent UTXOs to the transaction (hash) that spent them.
+		UtxoArchive: map hasher(identity) H256 => (H256, u64);
+		/// Store successful transactions.
+		TransactionArchive: map hasher(identity) H256 => ArchivedTransaction;
 
 		/// Total reward value to be redistributed among authorities.
 		/// It is accumulated from transactions during block execution
@@ -227,15 +242,32 @@ impl<T: Trait> Module<T> {
 		<RewardTotal>::put(new_total);
 
 		// Removing spent UTXOs
+		let mut inputs = Vec::new();
+		let mut to_archive = Vec::new();
+		let mut archive_idx = 0;
 		for input in &transaction.inputs {
-			<UtxoStore>::remove(input.outpoint);
+			if let Some(input_utxo) = <UtxoStore>::take(input.outpoint) {
+				inputs.push(input_utxo);
+				to_archive.push((input.outpoint, archive_idx));
+				archive_idx += 1;
+			}
 		}
 
 		let mut index: u64 = 0;
+		let mut outputs = Vec::new();
 		for output in &transaction.outputs {
 			let hash = BlakeTwo256::hash_of(&(&transaction.encode(), index));
 			index = index.checked_add(1).ok_or("output index overflow")?;
 			<UtxoStore>::insert(hash, output);
+			outputs.push(hash);
+		}
+
+		// archive the transaction for tracing
+		let archive_tx = ArchivedTransaction { inputs, outputs };
+		let archive_tx_hash = BlakeTwo256::hash_of(&archive_tx.encode());
+		<TransactionArchive>::insert(archive_tx_hash, archive_tx);
+		for (hash, idx) in to_archive {
+			<UtxoArchive>::insert(hash, (archive_tx_hash, idx));
 		}
 
 		Ok(())
