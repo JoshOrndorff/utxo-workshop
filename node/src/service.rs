@@ -108,7 +108,7 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 		other: pow_block_import,
 	} = new_partial(&config, sr25519_public_key)?;
 
-	let (network, network_status_sinks, system_rpc_tx, _network_starter) =
+	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
 			client: client.clone(),
@@ -170,6 +170,7 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 		);
 	}
 
+	network_starter.start_network();
 	Ok(task_manager)
 }
 
