@@ -105,6 +105,7 @@ decl_module! {
 		pub fn spend(_origin, transaction: Transaction) -> DispatchResult {
 									// TransactionValidity{}
 			let transaction_validity = Self::validate_transaction(&transaction)?;
+			ensure!(transaction_validity.requires.is_empty(), "missing inputs");
 
 			Self::update_storage(&transaction, transaction_validity.priority as Value)?;
 
@@ -286,7 +287,7 @@ impl<T: Trait> Module<T> {
 mod tests {
 	use super::*;
 
-	use frame_support::{assert_ok, assert_err, impl_outer_origin, parameter_types, weights::Weight};
+	use frame_support::{assert_ok, assert_noop, impl_outer_origin, parameter_types, weights::Weight};
 	use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
 	use sp_core::testing::{KeyStore, SR25519};
 	use sp_core::traits::KeystoreExt;
@@ -343,6 +344,8 @@ mod tests {
 	use hex_literal::hex;
 
 	const ALICE_PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	// other random account generated with subkey
+	const KARL_PHRASE: &str = "monitor exhibit resource stumble subject nut valid furnace obscure misery satoshi assume";
 	const GENESIS_UTXO: [u8; 32] = hex!("79eabcbd5ef6e958c6a7851b36da07691c19bda1835a08f875aa286911800999");
 
 	// This function basically just builds a genesis storage key/value store according to our desired mockup.
@@ -377,6 +380,37 @@ mod tests {
 		ext
 	}
 
+	fn new_test_ext_and_keys() -> (sp_io::TestExternalities, Public, Public) {
+
+		let keystore = KeyStore::new(); // a key storage to store new key pairs during testing
+		let alice_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(ALICE_PHRASE)).unwrap();
+		let karl_pub_key = keystore.write().sr25519_generate_new(SR25519, Some(KARL_PHRASE)).unwrap();
+
+		let mut t = frame_system::GenesisConfig::default()
+			.build_storage::<Test>()
+			.unwrap();
+
+		t.top.extend(
+			GenesisConfig {
+				genesis_utxos: vec![
+					TransactionOutput {
+						value: 100,
+						pubkey: H256::from(alice_pub_key),
+					}
+				],
+				..Default::default()
+			}
+			.build_storage()
+			.unwrap()
+			.top,
+		);
+
+		// Print the values to get GENESIS_UTXO
+		let mut ext = sp_io::TestExternalities::from(t);
+		ext.register_extension(KeystoreExt(keystore));
+		(ext, alice_pub_key, karl_pub_key)
+	}
+
 	#[test]
 	fn test_simple_transaction() {
 		new_test_ext().execute_with(|| {
@@ -405,15 +439,39 @@ mod tests {
 		});
 	}
 
+
+	#[test]
+	fn attack_with_sending_to_own_account() {
+		let (mut test_ext, _alice, karl_pub_key) = new_test_ext_and_keys();
+		test_ext.execute_with(|| {
+			// Karl wants to send himself a new utxo of value 50 out of thin air.
+			let mut transaction = Transaction {
+				inputs: vec![TransactionInput {
+					outpoint: H256::zero(),
+					sigscript: H512::zero(),
+				}],
+				outputs: vec![TransactionOutput {
+					value: 50,
+					pubkey: H256::from(karl_pub_key),
+				}],
+			};
+
+			let karl_signature = sp_io::crypto::sr25519_sign(SR25519, &karl_pub_key, &transaction.encode()).unwrap();
+			transaction.inputs[0].sigscript = H512::from(karl_signature);
+
+			assert_noop!(Utxo::spend(Origin::signed(0), transaction), "missing inputs");
+		});
+	}
+
 	#[test]
 	fn attack_with_empty_transactions() {
 		new_test_ext().execute_with(|| {
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), Transaction::default()), // an empty trx
 				"no inputs"
 			);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(
 					Origin::signed(0),
 					Transaction {
@@ -453,7 +511,7 @@ mod tests {
 			transaction.inputs[0].sigscript = H512::from(alice_signature.clone());
 			transaction.inputs[1].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"each input must only be used once"
 			);
@@ -487,7 +545,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"each output must be defined only once"
 			);
@@ -511,7 +569,7 @@ mod tests {
 				}],
 			};
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"signature must be valid"
 			);
@@ -538,7 +596,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"output value must be nonzero"
 			);
@@ -571,7 +629,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"output value overflow"
 			);
@@ -604,7 +662,7 @@ mod tests {
 			let alice_signature = sp_io::crypto::sr25519_sign(SR25519, &alice_pub_key, &transaction.encode()).unwrap();
 			transaction.inputs[0].sigscript = H512::from(alice_signature);
 
-			assert_err!(
+			assert_noop!(
 				Utxo::spend(Origin::signed(0), transaction),
 				"output value must not exceed input value"
 			);
