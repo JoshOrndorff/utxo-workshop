@@ -1,7 +1,7 @@
 use sp_core::{Pair, Public, sr25519, H256};
 use utxo_runtime::{
 	AccountId, BalancesConfig, GenesisConfig, DifficultyAdjustmentConfig,
-	SudoConfig, SystemConfig, WASM_BINARY, Signature, UtxoConfig,
+	SudoConfig, SystemConfig, WASM_BINARY, Signature,
 };
 use sc_service;
 use sp_runtime::traits::{Verify, IdentifyAccount};

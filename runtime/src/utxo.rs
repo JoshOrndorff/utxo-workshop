@@ -30,6 +30,8 @@ pub trait Trait: frame_system::Trait {
 	type Issuance: Issuance<<Self as frame_system::Trait>::BlockNumber, Value>;
 }
 
+pub type Value = u128;
+
 decl_storage! {
 	trait Store for Module<T: Trait> as Utxo {
 
