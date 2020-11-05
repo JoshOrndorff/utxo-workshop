@@ -42,11 +42,6 @@ pub fn development_config() -> ChainSpec {
 				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
 			],
-			// Genesis set of pubkeys that own UTXOs
-			vec![
-				get_from_seed::<sr25519::Public>("Alice"),
-				get_from_seed::<sr25519::Public>("Bob"),
-			],
 			true,
 		),
 		vec![],

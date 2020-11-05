@@ -343,6 +343,19 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
+		fn validate_transaction(
+			source: TransactionSource,
+			tx: <Block as BlockT>::Extrinsic,
+		) -> TransactionValidity {
+			// Extrinsics representing UTXO transaction need some special handling
+			// TODO
+
+			// Fall back to default logic for non UTXO-spending extrinsics
+			Executive::validate_transaction(source, tx)
+		}
+	}
+
 	impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
 		fn offchain_worker(header: &<Block as BlockT>::Header) {
 			Executive::offchain_worker(header)
