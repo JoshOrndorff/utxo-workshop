@@ -16,10 +16,9 @@
 
 use crate::service;
 use crate::chain_spec;
-use crate::cli::Cli;
+use crate::cli::{Cli, Subcommand};
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
-use crate::service::new_partial;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -69,18 +68,58 @@ impl SubstrateCli for Cli {
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 	let default_sr25519_public_key = sp_core::sr25519::Public::from_raw([0; 32]);
+	let sr25519_public_key = cli.run.sr25519_public_key.unwrap_or(default_sr25519_public_key);
 
 	match &cli.subcommand {
-		Some(subcommand) => {
-			let runner = cli.create_runner(subcommand)?;
-			runner.run_subcommand(subcommand, |config| {
-				let PartialComponents { client, backend, task_manager, import_queue, .. }
-					= new_partial(&config, default_sr25519_public_key)?;
-				Ok((client, backend, import_queue, task_manager))
+		Some(Subcommand::BuildSpec(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
+		},
+		Some(Subcommand::CheckBlock(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, import_queue, ..}
+					= service::new_partial(&config, sr25519_public_key)?;
+				Ok((cmd.run(client, import_queue), task_manager))
+			})
+		},
+		Some(Subcommand::ExportBlocks(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, ..}
+					= service::new_partial(&config, sr25519_public_key)?;
+				Ok((cmd.run(client, config.database), task_manager))
+			})
+		},
+		Some(Subcommand::ExportState(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, ..}
+					= service::new_partial(&config, sr25519_public_key)?;
+				Ok((cmd.run(client, config.chain_spec), task_manager))
+			})
+		},
+		Some(Subcommand::ImportBlocks(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, import_queue, ..}
+					= service::new_partial(&config, sr25519_public_key)?;
+				Ok((cmd.run(client, import_queue), task_manager))
+			})
+		},
+		Some(Subcommand::PurgeChain(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| cmd.run(config.database))
+		},
+		Some(Subcommand::Revert(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, backend, ..}
+					= service::new_partial(&config, sr25519_public_key)?;
+				Ok((cmd.run(client, backend), task_manager))
 			})
 		},
 		None => {
-			let sr25519_public_key = cli.run.sr25519_public_key.unwrap_or(default_sr25519_public_key);
 			let runner = cli.create_runner(&cli.run.base)?;
 			runner.run_node_until_exit(|config| match config.role {
 				Role::Light => service::new_light(config, sr25519_public_key),
