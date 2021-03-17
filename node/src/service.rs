@@ -78,7 +78,7 @@ ServiceError> {
 		client.clone(),
 		Sha3Algorithm::new(client.clone()),
 		0, // check inherents starting at block 0
-		Some(select_chain.clone()),
+		select_chain.clone(),
 		inherent_data_providers.clone(),
 		can_author_with,
 	);
@@ -153,19 +153,17 @@ pub fn new_full(config: Configuration, sr25519_public_key: sr25519::Public) -> R
 		let can_author_with =
 			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
-		sc_consensus_pow::start_mine(
+		sc_consensus_pow::start_mining_worker(
 			Box::new(pow_block_import),
 			client.clone(),
+			select_chain,
 			Sha3Algorithm::new(client.clone()),
 			proposer,
-			None, // No preruntime digests
-			rounds,
 			network,
-			std::time::Duration::new(2, 0),
-			// Choosing not to supply a select_chain means we will use the client's
-			// possibly-outdated metadata when fetching the block to mine on
-			Some(select_chain),
+			None, // No preruntime digests
 			inherent_data_providers,
+			std::time::Duration::new(2, 0),
+			std::time::Duration::new(2, 0),
 			can_author_with,
 		);
 	}
@@ -197,7 +195,7 @@ pub fn new_light(config: Configuration, sr25519_public_key: sr25519::Public) -> 
 		client.clone(),
 		Sha3Algorithm::new(client.clone()),
 		0, // check inherents starting at block 0
-		Some(select_chain),
+		select_chain,
 		inherent_data_providers.clone(),
 		// TODO what should I Really use here? This compiles, and the `can_author_with` from line 196 doesn't??
 		sp_consensus::AlwaysCanAuthor,

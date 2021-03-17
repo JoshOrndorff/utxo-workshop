@@ -2,7 +2,7 @@
 
 A UTXO chain implementation on Substrate, with two self-guided workshops. Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
 
-Substrate Version: `2.0.0-rc6`. For educational purposes only.
+Substrate Version: `2.0.0`. For educational purposes only.
 
 ## Table of Contents
 - [Installation](#Installation): Setting up Rust & Substrate dependencies
@@ -26,7 +26,9 @@ curl https://sh.rustup.rs -sSf | sh
 # from https://rustup.rs instead
 
 rustup update nightly
+rustup update nightly-2020-10-05
 rustup target add wasm32-unknown-unknown --toolchain nightly
+rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-05
 rustup update stable
 ```
 
@@ -48,7 +50,7 @@ The following example takes you through a scenario where:
 
 1. Compile and build a release node
 ```bash
-cargo build --release
+cargo +nightly-2020-10-05 build --release
 ```
 
 2. Start a node. The `--dev` flag will start a single mining node, and the `--tmp` flag will start it in a new temporary directory.
