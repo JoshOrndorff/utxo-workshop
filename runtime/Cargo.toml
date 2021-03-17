@@ -4,17 +4,12 @@ edition = '2018'
 homepage = 'https://substrate.dev'
 name = 'utxo-runtime'
 repository = 'https://github.com/substrate-developers-hub/utxo-workshop'
-version = '2.0.0-alpha.5'
-
-[dependencies.aura]
-default-features = false
-package = 'pallet-aura'
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.balances]
 default-features = false
 package = 'pallet-balances'
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.codec]
 default-features = false
@@ -24,21 +19,11 @@ version = '1.2.0'
 
 [dependencies.frame-executive]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.frame-support]
 default-features = false
-version = '2.0.0-alpha.5'
-
-[dependencies.grandpa]
-default-features = false
-package = 'pallet-grandpa'
-version = '2.0.0-alpha.5'
-
-[dependencies.randomness-collective-flip]
-default-features = false
-package = 'pallet-randomness-collective-flip'
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.serde]
 features = ['derive']
@@ -47,71 +32,65 @@ version = '1.0.101'
 
 [dependencies.sp-api]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-block-builder]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
-[dependencies.sp-consensus-aura]
+[dependencies.sp-consensus-pow]
 default-features = false
-version = '0.8.0-alpha.5'
+version = '0.8.0'
 
 [dependencies.sp-core]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-inherents]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-io]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-offchain]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-runtime]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-session]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-std]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-transaction-pool]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sp-version]
 default-features = false
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.sudo]
 default-features = false
 package = 'pallet-sudo'
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
-[dependencies.system]
+[dependencies.frame-system]
 default-features = false
-package = 'frame-system'
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dependencies.timestamp]
 default-features = false
 package = 'pallet-timestamp'
-version = '2.0.0-alpha.5'
-
-[dependencies.transaction-payment]
-default-features = false
-package = 'pallet-transaction-payment'
-version = '2.0.0-alpha.5'
+version = '2.0.0'
 
 [dev-dependencies]
 hex-literal = "0.2.1"
@@ -122,17 +101,14 @@ substrate-wasm-builder-runner = '1.0.5'
 [features]
 default = ['std']
 std = [
-    'aura/std',
     'balances/std',
     'codec/std',
     'frame-executive/std',
     'frame-support/std',
-    'grandpa/std',
-    'randomness-collective-flip/std',
     'serde',
     'sp-api/std',
     'sp-block-builder/std',
-    'sp-consensus-aura/std',
+    'sp-consensus-pow/std',
     'sp-core/std',
     'sp-inherents/std',
     'sp-io/std',
@@ -143,7 +119,6 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     'sudo/std',
-    'system/std',
+    'frame-system/std',
     'timestamp/std',
-    'transaction-payment/std',
 ]
