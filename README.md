@@ -40,7 +40,7 @@ git clone https://github.com/substrate-developer-hub/utxo-workshop.git
 
 ## UI Demo
 
-In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js).
+In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://polkadot.js.org/apps/).
 
 The following example takes you through a scenario where:
 - Alice already owns a UTXO of value 100 upon genesis
