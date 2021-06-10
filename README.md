@@ -1,5 +1,7 @@
 # UTXO on Substrate
 
+### _Note: this workshop is presently not actively maintained and is using older versions of all dependancies than presently used in substrate._
+
 A UTXO chain implementation on Substrate, with two self-guided workshops. Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
 
 Substrate Version: `2.0.0-rc6`. For educational purposes only.
